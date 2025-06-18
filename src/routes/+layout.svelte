@@ -9,6 +9,7 @@
     import '../App.css'
     import { base } from '$app/paths';
     import InstallPrompt from '$lib/components/InstallPrompt.svelte'
+    import LoadingScreen from '$lib/components/LoadingScreen.svelte'
   
     // Rutas públicas que no requieren autenticación
     const publicRoutes = ['/auth', '/auth/callback']
@@ -63,11 +64,7 @@
   </script>
   
   {#if $loading}
-    <div class="loading-container">
-      <div class="spinner">
-        <i class="fa-solid fa-user"></i>
-      </div>
-    </div>
+    <LoadingScreen />
   {:else}
     <slot />
   {/if}
@@ -75,21 +72,3 @@
   <!-- PWA Install Prompt -->
   <InstallPrompt />
   
-  <style>
-    .loading-container {
-      position: fixed;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      background-color: var(--white);
-    }
-  
-    .spinner {
-      font-size: 2rem;
-      color: var(--primary);
-    }
-  </style>
