@@ -2,7 +2,6 @@
 import { writable } from 'svelte/store'
 import { supabase } from '$lib/supabase'
 import { browser } from '$app/environment'
-import { user } from '$lib/stores/auth'
 
 // Store para el usuario actual
 export const user = writable(null)
