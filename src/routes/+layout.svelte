@@ -7,6 +7,7 @@
     import { goto } from '$app/navigation'
     import { page } from '$app/stores'
     import '../App.css'
+    import { base } from '$app/paths';
   
     // Rutas públicas que no requieren autenticación
     const publicRoutes = ['/auth', '/auth/callback']
@@ -22,9 +23,10 @@
         const isPublicRoute = publicRoutes.some(route => currentPath.startsWith(route))
         
         if (!session?.user && !isPublicRoute) {
-          goto('/auth')
+          goto(`${base}/auth`);
         } else if (session?.user && currentPath === '/auth') {
-          goto('/dashboard')
+          goto(`${base}/dashboard`);
+        
         }
       })
   
@@ -33,9 +35,9 @@
         user.set(session?.user ?? null)
         
         if (event === 'SIGNED_IN') {
-          goto('/dashboard')
+          goto(`${base}/dashboard`);
         } else if (event === 'SIGNED_OUT') {
-          goto('/auth')
+          goto(`${base}/auth`);
         }
       })
   
@@ -50,7 +52,7 @@
       const isPublicRoute = publicRoutes.some(route => currentPath.startsWith(route))
       
       if (!$user && !isPublicRoute) {
-        goto('/auth')
+        goto(`${base}/auth`);
       }
     }
   </script>
