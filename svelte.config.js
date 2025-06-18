@@ -17,7 +17,7 @@ const config = {
         // ¡¡¡CRÍTICO PARA GITHUB PAGES!!!
         // Aquí le indicamos el nombre de tu repositorio.
         paths: {
-            base: process.env.NODE_ENV === 'production' ? 'my-baby-tracker' : '',
+            base: process.env.NODE_ENV === 'production' ? '/my-baby-tracker' : '',
         }
     }
 };
