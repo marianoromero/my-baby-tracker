@@ -8,6 +8,7 @@
     import { page } from '$app/stores'
     import '../App.css'
     import { base } from '$app/paths';
+    import InstallPrompt from '$lib/components/InstallPrompt.svelte'
   
     // Rutas públicas que no requieren autenticación
     const publicRoutes = ['/auth', '/auth/callback']
@@ -70,6 +71,9 @@
   {:else}
     <slot />
   {/if}
+  
+  <!-- PWA Install Prompt -->
+  <InstallPrompt />
   
   <style>
     .loading-container {
