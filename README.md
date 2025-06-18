@@ -1,38 +1,21 @@
-# sv
+# Baby Tracker
 
-Everything you need to build a Svelte project, powered by [`sv`](https://github.com/sveltejs/cli).
+Una aplicación para rastrear los momentos importantes de tu bebé.
 
-## Creating a project
+## Características
 
-If you're seeing this, you've probably already done this step. Congrats!
+- Registro de eventos por sujeto (Bebé, Pareja, Yo)
+- Timeline con filtros por tiempo y sujeto
+- Interfaz responsive y moderna
+- Integración con Supabase para almacenamiento
 
-```bash
-# create a new project in the current directory
-npx sv create
-
-# create a new project in my-app
-npx sv create my-app
-```
-
-## Developing
-
-Once you've created a project and installed dependencies with `npm install` (or `pnpm install` or `yarn`), start a development server:
+## Desarrollo
 
 ```bash
+npm install
 npm run dev
-
-# or start the server and open the app in a new browser tab
-npm run dev -- --open
 ```
 
-## Building
+## Despliegue
 
-To create a production version of your app:
-
-```bash
-npm run build
-```
-
-You can preview the production build with `npm run preview`.
-
-> To deploy your app, you may need to install an [adapter](https://svelte.dev/docs/kit/adapters) for your target environment.
+La aplicación se despliega automáticamente en GitHub Pages cuando se hace push a la rama main.
