@@ -1,0 +1,220 @@
+// src/lib/stores/family.js
+import { writable, derived } from 'svelte/store'
+import { supabase } from '$lib/supabase'
+import { user } from './auth'
+
+// Store para la familia actual
+export const family = writable(null)
+export const familyLoading = writable(true)
+
+// Store para los sujetos
+export const subjects = writable([])
+
+// Store para las acciones
+export const actions = writable({})
+
+// Función para crear o obtener la familia del usuario
+export async function initializeFamily() {
+  familyLoading.set(true)
+  
+  try {
+    const { data: { user: currentUser } } = await supabase.auth.getUser()
+    console.log('Usuario actual:', currentUser?.id)
+    
+    // Verificar si el usuario ya tiene una familia
+    const { data: familyMember, error: memberError } = await supabase
+      .from('family_members')
+      .select('family_id')
+      .eq('user_id', currentUser.id)
+      .single()
+
+    console.log('Family member query:', { familyMember, memberError })
+
+    if (memberError && memberError.code !== 'PGRST116') {
+      console.error('Error al buscar familia:', memberError)
+      familyLoading.set(false)
+      return
+    }
+
+    let familyId
+
+    if (familyMember) {
+      // El usuario ya tiene una familia
+      familyId = familyMember.family_id
+      console.log('Usuario tiene familia:', familyId)
+    } else {
+      // Verificar si el usuario tiene un código de invitación en metadata
+      const invitationCode = currentUser?.user_metadata?.invitation_code
+      
+      if (invitationCode) {
+        // Intentar unirse a familia existente
+        const { success, familyId: existingFamilyId, error } = await joinFamilyWithCode(invitationCode)
+        
+        if (success) {
+          familyId = existingFamilyId
+        } else {
+          console.error('Error al unirse con código:', error)
+          // Crear nueva familia si el código falla
+          familyId = await createNewFamily(currentUser.id)
+        }
+      } else {
+        // Crear nueva familia
+        familyId = await createNewFamily(currentUser.id)
+      }
+    }
+
+    if (!familyId) {
+      console.error('No se pudo obtener o crear familia')
+      familyLoading.set(false)
+      return
+    }
+
+    // Obtener datos completos de la familia
+    const { data: familyData, error: familyError } = await supabase
+      .from('families')
+      .select('*')
+      .eq('id', familyId)
+      .single()
+
+    console.log('Family data query:', { familyData, familyError })
+
+    if (familyError) {
+      console.error('Error al obtener familia:', familyError)
+    } else {
+      family.set(familyData)
+      await loadSubjectsAndActions(familyId)
+    }
+  } catch (err) {
+    console.error('Error general en initializeFamily:', err)
+  } finally {
+    familyLoading.set(false)
+  }
+}
+
+// Función auxiliar para crear nueva familia
+async function createNewFamily(userId) {
+  const { data: newFamily, error: familyError } = await supabase
+    .from('families')
+    .insert({})
+    .select()
+    .single()
+
+  if (familyError) {
+    console.error('Error al crear familia:', familyError)
+    return null
+  }
+
+  // Añadir al usuario como miembro
+  const { error: addMemberError } = await supabase
+    .from('family_members')
+    .insert({
+      user_id: userId,
+      family_id: newFamily.id
+    })
+
+  if (addMemberError) {
+    console.error('Error al añadir miembro:', addMemberError)
+  }
+
+  return newFamily.id
+}
+
+// Cargar sujetos y sus acciones
+async function loadSubjectsAndActions(familyId) {
+  console.log('Cargando sujetos para familia:', familyId)
+  
+  // Cargar sujetos
+  const { data: subjectsData, error: subjectsError } = await supabase
+    .from('subjects')
+    .select('*')
+    .eq('family_id', familyId)
+    .order('position')
+
+  console.log('Subjects query:', { subjectsData, subjectsError })
+
+  if (subjectsError) {
+    console.error('Error al cargar sujetos:', subjectsError)
+    return
+  }
+
+  subjects.set(subjectsData || [])
+
+  // Cargar acciones para cada sujeto
+  const actionsMap = {}
+  
+  for (const subject of subjectsData || []) {
+    const { data: actionsData, error: actionsError } = await supabase
+      .from('actions')
+      .select('*')
+      .eq('subject_id', subject.id)
+      .order('name')
+
+    console.log(`Actions for ${subject.name}:`, { actionsData, actionsError })
+
+    if (!actionsError) {
+      actionsMap[subject.id] = actionsData || []
+    }
+  }
+
+  actions.set(actionsMap)
+  console.log('Actions map final:', actionsMap)
+}
+
+// Función para unirse a una familia con código de invitación
+export async function joinFamilyWithCode(invitationCode) {
+  try {
+    // Buscar familia por código
+    const { data: familyData, error: familyError } = await supabase
+      .from('families')
+      .select('id')
+      .eq('invitation_code', invitationCode.toUpperCase())
+      .single()
+
+    if (familyError || !familyData) {
+      return { error: 'Código de invitación inválido' }
+    }
+
+    // Verificar si ya es miembro
+    const userId = (await supabase.auth.getUser()).data.user.id
+    const { data: existingMember } = await supabase
+      .from('family_members')
+      .select('user_id')
+      .eq('user_id', userId)
+      .eq('family_id', familyData.id)
+      .single()
+
+    if (existingMember) {
+      return { error: 'Ya eres miembro de esta familia' }
+    }
+
+    // Añadir como miembro
+    const { error: addError } = await supabase
+      .from('family_members')
+      .insert({
+        user_id: userId,
+        family_id: familyData.id
+      })
+
+    if (addError) {
+      return { error: 'Error al unirse a la familia' }
+    }
+
+    return { success: true, familyId: familyData.id }
+  } catch (err) {
+    return { error: 'Error inesperado' }
+  }
+}
+
+// Suscribirse a cambios de la familia cuando el usuario cambie
+user.subscribe(async ($user) => {
+  if ($user) {
+    console.log('Usuario cambió, inicializando familia para:', $user.id)
+    await initializeFamily()
+  } else {
+    console.log('Usuario cerró sesión, limpiando datos')
+    family.set(null)
+    subjects.set([])
+    actions.set({})
+    familyLoading.set(false)
+  }
+})

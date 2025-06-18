@@ -1,0 +1,67 @@
+# Nombre del workflow que aparecerá en la pestaña "Actions" de GitHub
+name: Deploy SvelteKit Site to GitHub Pages
+
+on:
+  # Se ejecuta cada vez que haces un 'push' a la rama 'main'
+  push:
+    branches: ["main"]
+
+  # Permite ejecutar este workflow manualmente desde la pestaña Actions
+  workflow_dispatch:
+
+# Permisos necesarios para que la Action pueda desplegar en GitHub Pages
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Configuración del entorno de despliegue
+environment:
+  name: github-pages
+  url: ${{ steps.deployment.outputs.page_url }}
+
+jobs:
+  # Job de construcción del sitio
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      # 1. Clona tu repositorio
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # 2. Configura Node.js
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20" # Usa una versión LTS de Node
+          cache: 'npm'
+
+      # 3. Instala las dependencias
+      - name: Install dependencies
+        run: npm install
+
+      # 4. Construye el sitio estático
+      # La variable de entorno es para que se aplique el 'paths.base'
+      - name: Build
+        run: npm run build
+        
+      # 5. Prepara el artefacto para subirlo a GitHub Pages
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+
+      # 6. Sube el artefacto (la carpeta 'build')
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: './build'
+
+  # Job de despliegue
+  deploy:
+    # Depende de que el job 'build' termine correctamente
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      # 1. Despliega el artefacto subido en el job anterior
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

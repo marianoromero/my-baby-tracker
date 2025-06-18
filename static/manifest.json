@@ -1,0 +1,21 @@
+{
+    "name": "Baby Tracker",
+    "short_name": "BabyTrack",
+    "description": "Rastrea los eventos de tu bebé en tiempo real",
+    "start_url": "/",
+    "display": "standalone",
+    "theme_color": "#458199",
+    "background_color": "#FFFFFF",
+    "icons": [
+      {
+        "src": "/icons/icon-192x192.png",
+        "sizes": "192x192",
+        "type": "image/png"
+      },
+      {
+        "src": "/icons/icon-512x512.png",
+        "sizes": "512x512",
+        "type": "image/png"
+      }
+    ]
+  }
