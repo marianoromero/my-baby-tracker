@@ -40,7 +40,7 @@
       }
     }
 
-    if (!user && $page.url.pathname !== `${base}/auth`) {
+    if (!$user && $page.url.pathname !== `${base}/auth`) {
       goto(`${base}/auth`);
     }
   </script>
