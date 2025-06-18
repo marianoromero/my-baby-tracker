@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta http-equiv="refresh" content="0; url=/my-baby-tracker/" />
+    <script>
+      // Redirige a la SPA manteniendo la ruta original
+      var path = window.location.pathname.replace('/my-baby-tracker', '');
+      window.location.replace('/my-baby-tracker/#' + path + window.location.search + window.location.hash);
+    </script>
+  </head>
+  <body>
+    <h1>Redirigiendo...</h1>
+  </body>
+</html>
