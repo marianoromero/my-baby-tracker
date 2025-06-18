@@ -134,8 +134,9 @@
       loadRecentActions()
     }
 
-    $: if (!$user) {
-      // lógica de redirección o autenticación
+    // Reactively handle user state changes
+    $: if ($user === null) {
+      console.log('User is not authenticated')
     }
 </script>
 
