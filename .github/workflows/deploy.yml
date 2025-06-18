@@ -35,15 +35,21 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-      # 4. Construye el sitio estático
+      # 4. Expose env variables
+      - name: Expose env variables
+        run: |
+          echo "PUBLIC_SUPABASE_URL=${{ vars.PUBLIC_SUPABASE_URL }}" >> $GITHUB_ENV
+          echo "PUBLIC_SUPABASE_ANON_KEY=${{ vars.PUBLIC_SUPABASE_ANON_KEY }}" >> $GITHUB_ENV
+
+      # 5. Construye el sitio estático
       - name: Build
         run: npm run build
         
-      # 5. Prepara el artefacto para subirlo a GitHub Pages
+      # 6. Prepara el artefacto para subirlo a GitHub Pages
       - name: Setup Pages
         uses: actions/configure-pages@v5
 
-      # 6. Sube el artefacto (la carpeta 'build')
+      # 7. Sube el artefacto (la carpeta 'build')
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
