@@ -2,6 +2,7 @@
 <script>
     import { page } from '$app/stores'
     import { goto } from '$app/navigation'
+    import { base } from '$app/paths'
     import { subjects, actions } from '$lib/stores/family'
     import { supabase } from '$lib/supabase'
     import { user } from '$lib/stores/auth'
@@ -109,7 +110,7 @@
 
 <div class="container">
     <header style="background-color: {subject?.color}">
-        <button class="back-button" on:click={() => goto('/dashboard')}>
+        <button class="back-button" on:click={() => goto(`${base}/dashboard`)}>
             <i class="fa-solid fa-arrow-left"></i>
         </button>
         <h1>{subject?.name}</h1>

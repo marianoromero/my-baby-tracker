@@ -4,6 +4,7 @@
     import { family, familyLoading, subjects, actions } from '$lib/stores/family'
     import { supabase } from '$lib/supabase'
     import { goto } from '$app/navigation'
+    import { base } from '$app/paths'
     
     let selectedSubject = null
     let registering = false
@@ -75,11 +76,11 @@
 
     function navigateToTimeline() {
       closeMenu()
-      goto('/timeline?filter=today')
+      goto(`${base}/timeline?filter=today`)
     }
 
     function navigateToSubject(subjectId) {
-      goto(`/subject/${subjectId}`)
+      goto(`${base}/subject/${subjectId}`)
     }
 
     // Obtener las 3 acciones más recientes de un sujeto
