@@ -1,6 +1,9 @@
 <!-- src/routes/auth/+page.svelte -->
 <script>
     import { signIn, signUp, signInWithGoogle, loading } from '$lib/stores/auth'
+    import { page } from '$app/stores';
+    import { base } from '$app/paths';
+    import { goto } from '$app/navigation';
     
     let email = ''
     let password = ''
@@ -35,6 +38,10 @@
       if (authError) {
         error = authError.message
       }
+    }
+
+    if (!user && $page.url.pathname !== `${base}/auth`) {
+      goto(`${base}/auth`);
     }
   </script>
   
