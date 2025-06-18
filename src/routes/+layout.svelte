@@ -10,9 +10,10 @@
     import { base } from '$app/paths';
     import InstallPrompt from '$lib/components/InstallPrompt.svelte'
     import LoadingScreen from '$lib/components/LoadingScreen.svelte'
+    import { family, familyLoading } from '$lib/stores/family'
   
     // Rutas públicas que no requieren autenticación
-    const publicRoutes = ['/auth', '/auth/callback']
+    const publicRoutes = ['/auth', '/auth/callback', '/onboarding']
   
     let hasInitialized = false
     
@@ -52,13 +53,24 @@
     })
   
     // Manejar redirecciones reactivas solo después de la inicialización
-    $: if (browser && !$loading && hasInitialized) {
+    $: if (browser && !$loading && !$familyLoading && hasInitialized) {
       const currentPath = $page.url.pathname
       const isPublicRoute = publicRoutes.some(route => currentPath.startsWith(route))
       
-      // Solo redirigir si realmente necesitamos hacerlo y no estamos ya en la ruta correcta
-      if (!$user && !isPublicRoute && currentPath !== `${base}/auth`) {
-        goto(`${base}/auth`);
+      if ($user) {
+        // Usuario autenticado
+        if (!$family && currentPath !== `${base}/onboarding`) {
+          // Usuario sin familia - redirigir a onboarding
+          goto(`${base}/onboarding`);
+        } else if ($family && currentPath === `${base}/onboarding`) {
+          // Usuario con familia en onboarding - redirigir a dashboard
+          goto(`${base}/dashboard`);
+        }
+      } else {
+        // Usuario no autenticado - redirigir a auth
+        if (!isPublicRoute && currentPath !== `${base}/auth`) {
+          goto(`${base}/auth`);
+        }
       }
     }
   </script>

@@ -43,24 +43,10 @@ export async function initializeFamily() {
       familyId = familyMember.family_id
       console.log('Usuario tiene familia:', familyId)
     } else {
-      // Verificar si el usuario tiene un código de invitación en metadata
-      const invitationCode = currentUser?.user_metadata?.invitation_code
-      
-      if (invitationCode) {
-        // Intentar unirse a familia existente
-        const { success, familyId: existingFamilyId, error } = await joinFamilyWithCode(invitationCode)
-        
-        if (success) {
-          familyId = existingFamilyId
-        } else {
-          console.error('Error al unirse con código:', error)
-          // Crear nueva familia si el código falla
-          familyId = await createNewFamily(currentUser.id)
-        }
-      } else {
-        // Crear nueva familia
-        familyId = await createNewFamily(currentUser.id)
-      }
+      // El usuario no tiene familia - necesita onboarding
+      console.log('Usuario necesita onboarding')
+      familyLoading.set(false)
+      return { needsOnboarding: true }
     }
 
     if (!familyId) {
@@ -209,7 +195,12 @@ export async function joinFamilyWithCode(invitationCode) {
 user.subscribe(async ($user) => {
   if ($user) {
     console.log('Usuario cambió, inicializando familia para:', $user.id)
-    await initializeFamily()
+    const result = await initializeFamily()
+    
+    // Si el usuario necesita onboarding, esto se manejará en el layout
+    if (result?.needsOnboarding) {
+      console.log('Usuario necesita ir a onboarding')
+    }
   } else {
     console.log('Usuario cerró sesión, limpiando datos')
     family.set(null)
