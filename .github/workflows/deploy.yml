@@ -15,11 +15,6 @@ permissions:
   pages: write
   id-token: write
 
-# Configuración del entorno de despliegue
-environment:
-  name: github-pages
-  url: ${{ steps.deployment.outputs.page_url }}
-
 jobs:
   # Job de construcción del sitio
   build:
@@ -41,7 +36,6 @@ jobs:
         run: npm install
 
       # 4. Construye el sitio estático
-      # La variable de entorno es para que se aplique el 'paths.base'
       - name: Build
         run: npm run build
         
@@ -60,6 +54,9 @@ jobs:
     # Depende de que el job 'build' termine correctamente
     needs: build
     runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
     steps:
       # 1. Despliega el artefacto subido en el job anterior
       - name: Deploy to GitHub Pages
