@@ -29,11 +29,12 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "20" # Usa una versión LTS de Node
-          cache: 'npm'
 
-      # 3. Instala las dependencias
+      # 3. Clean install dependencies (fix for rollup native binaries issue)
       - name: Install dependencies
-        run: npm install
+        run: |
+          rm -rf node_modules package-lock.json
+          npm install --force
 
       # 4. Create .env file with Supabase variables
       - name: Create .env file
