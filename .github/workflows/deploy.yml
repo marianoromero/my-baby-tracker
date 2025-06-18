@@ -35,11 +35,11 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-      # 4. Expose env variables
-      - name: Expose env variables
+      # 4. Create .env file with Supabase variables
+      - name: Create .env file
         run: |
-          echo "PUBLIC_SUPABASE_URL=${{ vars.PUBLIC_SUPABASE_URL }}" >> $GITHUB_ENV
-          echo "PUBLIC_SUPABASE_ANON_KEY=${{ vars.PUBLIC_SUPABASE_ANON_KEY }}" >> $GITHUB_ENV
+          echo "PUBLIC_SUPABASE_URL=${{ secrets.PUBLIC_SUPABASE_URL }}" > .env
+          echo "PUBLIC_SUPABASE_ANON_KEY=${{ secrets.PUBLIC_SUPABASE_ANON_KEY }}" >> .env
 
       # 5. Construye el sitio estático
       - name: Build
