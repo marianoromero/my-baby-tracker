@@ -110,7 +110,7 @@
 <div class="container">
     <header style="background-color: {subject?.color}">
         <button class="back-button" on:click={() => goto('/dashboard')}>
-            <i class="fas fa-arrow-left"></i>
+            <i class="fa-solid fa-arrow-left"></i>
         </button>
         <h1>{subject?.name}</h1>
     </header>
@@ -159,7 +159,7 @@
                     on:click={() => showAddAction = true}
                     style="border-color: {subject?.color}; color: {subject?.color}"
                 >
-                    <i class="fas fa-plus"></i>
+                    <i class="fa-solid fa-plus"></i>
                     Añadir acción
                 </button>
             {/if}

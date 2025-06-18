@@ -133,19 +133,23 @@
     $: if ($subjects && $actions) {
       loadRecentActions()
     }
+
+    $: if (!$user) {
+      // lógica de redirección o autenticación
+    }
 </script>
 
 <div class="container">
   <header>
     <h1>Baby Tracker</h1>
     <button class="menu-button" on:click={toggleMenu}>
-      <i class="fas fa-bars"></i>
+      <i class="fa-solid fa-bars"></i>
     </button>
   </header>
 
   {#if $familyLoading}
     <div class="loading">
-      <i class="fas fa-spinner fa-spin"></i>
+      <i class="fa-solid fa-spinner fa-spin"></i>
       <p>Cargando datos familiares...</p>
     </div>
   {:else if $family}
@@ -155,9 +159,9 @@
         {#each $subjects as subject}
           <div class="subject-section" style="background-color: {subject.color}">
             <div class="subject-header" on:click={() => navigateToSubject(subject.id)}>
-              <i class="fas {subject.icon}"></i>
+              <i class="fa-solid {subject.icon}"></i>
               <h2>{subject.name}</h2>
-              <i class="fas fa-chevron-right"></i>
+              <i class="fa-solid fa-chevron-right"></i>
             </div>
             
             <div class="actions-list">
@@ -191,7 +195,7 @@
 <div class="side-menu" class:open={menuOpen}>
   <div class="menu-header">
     <button class="close-button" on:click={closeMenu}>
-      <i class="fas fa-times"></i>
+      <i class="fa-solid fa-times"></i>
     </button>
   </div>
   
@@ -200,13 +204,13 @@
       <h3>Código de familia</h3>
       <div class="invitation-code" on:click={copyInvitationCode}>
         <code>{$family?.invitation_code}</code>
-        <i class="fas fa-copy"></i>
+        <i class="fa-solid fa-copy"></i>
       </div>
     </div>
 
     <div class="menu-section">
       <button class="menu-item" on:click={navigateToTimeline}>
-        <i class="fas fa-history"></i>
+        <i class="fa-solid fa-history"></i>
         Timeline
       </button>
     </div>
@@ -215,7 +219,7 @@
 
     <div class="menu-section">
       <button class="menu-item logout" on:click={signOut}>
-        <i class="fas fa-sign-out-alt"></i>
+        <i class="fa-solid fa-sign-out-alt"></i>
         Cerrar Sesión
       </button>
     </div>

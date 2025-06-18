@@ -107,7 +107,7 @@
           class:active={$selectedFilter === filter.value}
           on:click={() => handleFilterChange(filter.value)}
         >
-          <i class="fas {filter.icon}"></i>
+          <i class="fa-solid {filter.icon}"></i>
           <span>{filter.label}</span>
         </button>
       {/each}
@@ -122,7 +122,7 @@
             checked={selectedSubjects.has(subject.id)}
             on:change={() => toggleSubject(subject.id)}
           />
-          <i class="fas {subject.icon}" style="color: {subject.color}"></i>
+          <i class="fa-solid {subject.icon}"></i>
           <span>{subject.name}</span>
         </label>
       {/each}
@@ -131,12 +131,12 @@
     <!-- Lista de eventos -->
     {#if $eventsLoading}
       <div class="loading">
-        <i class="fas fa-spinner fa-spin"></i>
+        <i class="fa-solid fa-spinner fa-spin"></i>
         <p>Cargando eventos...</p>
       </div>
     {:else if Object.keys(filteredEvents).length === 0}
       <div class="empty-state">
-        <i class="fas fa-clipboard-list"></i>
+        <i class="fa-solid fa-clipboard-list"></i>
         <p>No hay eventos registrados en este período</p>
       </div>
     {:else}
@@ -156,12 +156,12 @@
                   </div>
                   
                   <div class="event-icon" style="background-color: {event.subjects?.color}">
-                    <i class="fas {getActionIcon(event.action_name)}"></i>
+                    <i class="fa-solid {getActionIcon(event.action_name)}"></i>
                   </div>
                   
                   <div class="event-content">
                     <div class="event-subject">
-                      <i class="fas {event.subjects?.icon}"></i>
+                      <i class="fa-solid {event.subjects?.icon}"></i>
                       {event.subjects?.name}
                     </div>
                     <div class="event-action">{event.action_name}</div>

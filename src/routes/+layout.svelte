@@ -60,7 +60,7 @@
   {#if $loading}
     <div class="loading-container">
       <div class="spinner">
-        <i class="fas fa-spinner fa-spin"></i>
+        <i class="fa-solid fa-user"></i>
       </div>
     </div>
   {:else}

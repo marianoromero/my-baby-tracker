@@ -1,6 +1,6 @@
 <!-- src/routes/auth/+page.svelte -->
 <script>
-    import { signIn, signUp, signInWithGoogle, loading } from '$lib/stores/auth'
+    import { signIn, signUp, signInWithGoogle, loading, user } from '$lib/stores/auth'
     import { page } from '$app/stores';
     import { base } from '$app/paths';
     import { goto } from '$app/navigation';
@@ -109,7 +109,7 @@
   
         <button type="submit" class="btn btn-primary" disabled={$loading}>
           {#if $loading}
-            <i class="fas fa-spinner fa-spin"></i>
+            <i class="fa-solid fa-spinner fa-spin"></i>
           {:else}
             {isLogin ? 'Iniciar Sesión' : 'Crear Cuenta'}
           {/if}
