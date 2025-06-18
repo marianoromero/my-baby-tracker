@@ -40,9 +40,7 @@
       }
     }
 
-    if (!$user && $page.url.pathname !== `${base}/auth`) {
-      goto(`${base}/auth`);
-    }
+    // Remove this navigation logic - let the layout handle redirects
   </script>
   
   <div class="auth-container">

@@ -12,11 +12,14 @@
     // Rutas públicas que no requieren autenticación
     const publicRoutes = ['/auth', '/auth/callback']
   
+    let hasInitialized = false
+    
     onMount(() => {
       // Obtener la sesión inicial
       supabase.auth.getSession().then(({ data: { session } }) => {
         user.set(session?.user ?? null)
         loading.set(false)
+        hasInitialized = true
         
         // Manejar redirecciones solo en el cliente
         const currentPath = $page.url.pathname
@@ -26,7 +29,6 @@
           goto(`${base}/auth`);
         } else if (session?.user && currentPath === '/auth') {
           goto(`${base}/dashboard`);
-        
         }
       })
   
@@ -34,6 +36,7 @@
       const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
         user.set(session?.user ?? null)
         
+        // Solo navegar en eventos específicos para evitar loops
         if (event === 'SIGNED_IN') {
           goto(`${base}/dashboard`);
         } else if (event === 'SIGNED_OUT') {
@@ -46,12 +49,13 @@
       }
     })
   
-    // Manejar redirecciones reactivas solo en el cliente
-    $: if (browser && !$loading) {
+    // Manejar redirecciones reactivas solo después de la inicialización
+    $: if (browser && !$loading && hasInitialized) {
       const currentPath = $page.url.pathname
       const isPublicRoute = publicRoutes.some(route => currentPath.startsWith(route))
       
-      if (!$user && !isPublicRoute) {
+      // Solo redirigir si realmente necesitamos hacerlo y no estamos ya en la ruta correcta
+      if (!$user && !isPublicRoute && currentPath !== `${base}/auth`) {
         goto(`${base}/auth`);
       }
     }
