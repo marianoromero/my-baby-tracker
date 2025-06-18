@@ -6,7 +6,7 @@
     import { user, loading } from '$lib/stores/auth'
     import { goto } from '$app/navigation'
     import { page } from '$app/stores'
-    import '../app.css'
+    import '../App.css'
   
     // Rutas públicas que no requieren autenticación
     const publicRoutes = ['/auth', '/auth/callback']
