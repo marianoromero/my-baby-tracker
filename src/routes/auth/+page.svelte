@@ -27,6 +27,9 @@
   
       if (authError) {
         error = authError.message
+      } else if (isLogin && data?.user) {
+        // Redirigir al dashboard después del login exitoso
+        goto(`${base}/dashboard`)
       } else if (!isLogin) {
         successMessage = 'Cuenta creada. Revisa tu email para confirmar.'
       }
@@ -34,10 +37,11 @@
   
     const handleGoogleSignIn = async () => {
       error = null
-      const { error: authError } = await signInWithGoogle()
+      const { data, error: authError } = await signInWithGoogle()
       if (authError) {
         error = authError.message
       }
+      // Note: Google OAuth will redirect automatically via callback
     }
 
     // Remove this navigation logic - let the layout handle redirects
