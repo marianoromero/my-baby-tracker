@@ -250,12 +250,13 @@
 
 <style>
   .container {
-    min-height: 100vh;
+    height: 100vh;
     background-color: var(--gray-light);
     width: 100%;
     max-width: none;
     display: flex;
     flex-direction: column;
+    overflow: hidden;
   }
 
   header {
@@ -297,7 +298,7 @@
     display: flex;
     flex-direction: column;
     width: 100%;
-    min-height: 100%;
+    height: 100%;
   }
 
   .subject-section {
@@ -305,7 +306,7 @@
     color: var(--white);
     margin-bottom: 0;
     width: 100%;
-    min-height: 200px;
+    flex: 1;
     display: flex;
     flex-direction: column;
   }
@@ -341,13 +342,11 @@
   }
 
   .actions-list {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    display: flex;
+    flex-direction: column;
     gap: var(--spacing-sm);
     width: 100%;
     flex: 1;
-    min-height: 120px;
-    align-content: start;
   }
 
   .action-btn {
@@ -520,12 +519,6 @@
   @media (max-width: 640px) {
     .subject-section {
       padding: var(--spacing-md);
-      min-height: 180px;
-    }
-
-    .actions-list {
-      grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
-      min-height: 100px;
     }
 
     .action-btn {
@@ -561,13 +554,10 @@
   @media (max-width: 480px) {
     .subject-section {
       padding: var(--spacing-sm);
-      min-height: 160px;
     }
 
     .actions-list {
-      grid-template-columns: repeat(2, 1fr);
       gap: var(--spacing-xs);
-      min-height: 90px;
     }
 
     .action-btn {
@@ -593,29 +583,10 @@
     }
   }
 
-  /* Adjust sections based on available height and number of subjects */
-  @media (min-height: 600px) {
-    .main-sections {
-      min-height: calc(100vh - 60px);
-    }
-  }
-
-  @media (min-height: 800px) {
-    .subject-section {
-      max-height: calc((100vh - 60px) / 3);
-      min-height: 250px;
-    }
-  }
-
+  /* Height-based adjustments for compact layouts */
   @media (max-height: 700px) {
     .subject-section {
-      min-height: 160px;
       padding: var(--spacing-md);
-    }
-
-    .actions-list {
-      min-height: 80px;
-      grid-template-columns: repeat(auto-fit, minmax(90px, 1fr));
     }
 
     .action-btn, .action-placeholder {
@@ -627,7 +598,6 @@
 
   @media (max-height: 600px) {
     .subject-section {
-      min-height: 140px;
       padding: var(--spacing-sm);
     }
 
@@ -644,12 +614,11 @@
     }
 
     .actions-list {
-      min-height: 60px;
       gap: var(--spacing-xs);
     }
 
     .action-btn, .action-placeholder {
-      min-height: 28px;
+      min-height: 32px;
       font-size: 0.75rem;
       padding: var(--spacing-xs);
     }
