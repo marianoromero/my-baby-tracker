@@ -11,6 +11,7 @@
   let loading = false
   let error = null
   let success = false
+  let isCreatingFamily = false // Prevenir doble ejecución
 
   // Redirigir si ya tiene familia
   $: if ($family) {
@@ -63,6 +64,13 @@
   }
 
   async function createNewFamily() {
+    // Prevenir doble ejecución
+    if (isCreatingFamily) {
+      console.log('Ya se está creando una familia, ignorando...')
+      return
+    }
+
+    isCreatingFamily = true
     loading = true
     error = null
 
@@ -77,6 +85,7 @@
       console.error('Error creating family:', err)
       error = `Error inesperado: ${err.message}`
       loading = false
+      isCreatingFamily = false
     }
   }
 
@@ -116,6 +125,23 @@
       }
 
       console.log('Usuario añadido como miembro')
+
+      // Verificar si ya existen sujetos para esta familia
+      const { data: existingSubjects } = await supabase
+        .from('subjects')
+        .select('id, name')
+        .eq('family_id', newFamily.id)
+
+      if (existingSubjects && existingSubjects.length > 0) {
+        console.log('Ya existen sujetos para esta familia:', existingSubjects)
+        console.log('Saltando creación de sujetos duplicados')
+        success = true
+        await initializeFamily()
+        setTimeout(() => {
+          goto(`${base}/dashboard`)
+        }, 1500)
+        return
+      }
 
       // Crear sujetos por defecto (sin position para evitar constraint)
       const defaultSubjects = [
@@ -183,6 +209,7 @@
       console.error('Error en método tradicional:', err)
       error = `Error inesperado: ${err.message}`
       loading = false
+      isCreatingFamily = false
     }
   }
 
@@ -336,7 +363,7 @@
         <button 
           class="btn-primary" 
           on:click={createNewFamily}
-          disabled={loading}
+          disabled={loading || isCreatingFamily}
         >
           {#if loading}
             <i class="fa-solid fa-spinner fa-spin"></i>
