@@ -32,12 +32,12 @@
     <div class="modal-content" on:click|stopPropagation>
       <div class="modal-header">
         <i class="fa-solid fa-exclamation-triangle"></i>
-        <h3>Eliminar evento</h3>
+        <h3>Eliminar {eventData?.event_timestamp && new Date(eventData.event_timestamp).getFullYear() === new Date().getFullYear() ? 'evento' : 'acción'}</h3>
       </div>
       
       <div class="modal-body">
         {#if eventData}
-          <p>¿Estás seguro de que quieres eliminar este evento?</p>
+          <p>¿Estás seguro de que quieres eliminar {eventData.event_timestamp && new Date(eventData.event_timestamp).getFullYear() === new Date().getFullYear() ? 'este evento' : 'esta acción'}?</p>
           <div class="event-preview">
             <div class="event-icon" style="background-color: {eventData.subjects?.color}">
               <i class="fa-solid fa-trash"></i>
@@ -48,13 +48,17 @@
                 {eventData.subjects?.name}
               </div>
               <div class="event-action">{eventData.action_name}</div>
-              <div class="event-time">{new Date(eventData.event_timestamp).toLocaleString('es-ES', {
-                day: '2-digit',
-                month: '2-digit', 
-                year: 'numeric',
-                hour: '2-digit',
-                minute: '2-digit'
-              })}</div>
+              {#if eventData.event_timestamp && new Date(eventData.event_timestamp).getFullYear() === new Date().getFullYear()}
+                <div class="event-time">{new Date(eventData.event_timestamp).toLocaleString('es-ES', {
+                  day: '2-digit',
+                  month: '2-digit', 
+                  year: 'numeric',
+                  hour: '2-digit',
+                  minute: '2-digit'
+                })}</div>
+              {:else}
+                <div class="event-time">Acción disponible</div>
+              {/if}
             </div>
           </div>
           <p class="warning-text">Esta acción no se puede deshacer.</p>

@@ -6,12 +6,19 @@
     import { subjects, actions } from '$lib/stores/family'
     import { supabase } from '$lib/supabase'
     import { user } from '$lib/stores/auth'
+    import DeleteConfirmModal from '$lib/components/DeleteConfirmModal.svelte'
     
     let subject = null
     let subjectActions = []
     let registering = false
     let showAddAction = false
     let newActionName = ''
+    
+    // Variables para swipe-to-delete
+    let swipeData = new Map() // Para trackear el estado de cada acción
+    let showDeleteModal = false
+    let actionToDelete = null
+    let deleting = false
     
     // Cargar datos del sujeto y sus acciones
     $: {
@@ -106,6 +113,128 @@
             setTimeout(() => notification.remove(), 300)
         }, 3000)
     }
+    
+    // Función para eliminar una acción
+    async function deleteAction(actionId) {
+        try {
+            const { error } = await supabase
+                .from('actions')
+                .delete()
+                .eq('id', actionId)
+            
+            if (error) {
+                console.error('Error eliminando acción:', error)
+                return { success: false, error: error.message }
+            }
+            
+            // Remover la acción del store local
+            const updatedActions = { ...$actions }
+            if (updatedActions[subject.id]) {
+                updatedActions[subject.id] = updatedActions[subject.id].filter(action => action.id !== actionId)
+            }
+            actions.set(updatedActions)
+            
+            return { success: true }
+        } catch (err) {
+            console.error('Error inesperado:', err)
+            return { success: false, error: 'Error inesperado' }
+        }
+    }
+    
+    // Funciones para manejar swipe-to-delete
+    function handleTouchStart(event, actionData) {
+        const touch = event.touches[0]
+        swipeData.set(actionData.id, {
+            startX: touch.clientX,
+            startY: touch.clientY,
+            deltaX: 0,
+            isSwiping: false,
+            revealed: false
+        })
+    }
+    
+    function handleTouchMove(event, actionData) {
+        const touch = event.touches[0]
+        const data = swipeData.get(actionData.id)
+        
+        if (!data) return
+        
+        const deltaX = touch.clientX - data.startX
+        const deltaY = touch.clientY - data.startY
+        
+        // Determinar si es un swipe horizontal
+        if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > 10) {
+            event.preventDefault()
+            data.isSwiping = true
+            data.deltaX = Math.min(0, deltaX) // Solo permitir swipe hacia la izquierda
+            swipeData.set(actionData.id, data)
+            swipeData = swipeData // Trigger reactivity
+        }
+    }
+    
+    function handleTouchEnd(event, actionData) {
+        const data = swipeData.get(actionData.id)
+        
+        if (!data) return
+        
+        // Si se deslizó más de 80px, revelar el botón de eliminar
+        if (data.deltaX < -80) {
+            data.revealed = true
+            data.deltaX = -80
+        } else {
+            data.revealed = false
+            data.deltaX = 0
+        }
+        
+        data.isSwiping = false
+        swipeData.set(actionData.id, data)
+        swipeData = swipeData // Trigger reactivity
+    }
+    
+    function showDeleteConfirm(actionData) {
+        // Crear un objeto compatible con el modal de eventos
+        actionToDelete = {
+            id: actionData.id,
+            action_name: actionData.name,
+            subjects: subject,
+            event_timestamp: new Date().toISOString() // Timestamp ficticio para el modal
+        }
+        showDeleteModal = true
+        
+        // Cerrar el swipe de la acción
+        const data = swipeData.get(actionData.id)
+        if (data) {
+            data.revealed = false
+            data.deltaX = 0
+            swipeData.set(actionData.id, data)
+            swipeData = swipeData
+        }
+    }
+    
+    async function confirmDelete(event) {
+        if (!event.detail) return
+        
+        deleting = true
+        const result = await deleteAction(event.detail.id)
+        
+        if (result.success) {
+            // Limpiar datos del swipe
+            swipeData.delete(event.detail.id)
+            swipeData = swipeData
+            
+            // Mostrar notificación de éxito
+            showNotification('✅ Acción eliminada correctamente')
+        } else {
+            showNotification('❌ Error al eliminar la acción')
+        }
+        
+        deleting = false
+        actionToDelete = null
+    }
+    
+    function cancelDelete() {
+        actionToDelete = null
+    }
 </script>
 
 <div class="container">
@@ -119,14 +248,32 @@
     <main>
         <div class="actions-list">
             {#each subjectActions as action}
-                <button 
-                    class="action-btn"
-                    on:click={() => registerEvent(action.name)}
-                    disabled={registering}
-                    style="background-color: {subject?.color}33; color: {subject?.color}"
-                >
-                    {action.name}
-                </button>
+                <div class="action-wrapper">
+                    <!-- Botón de eliminar (background) -->
+                    <div class="delete-background">
+                        <button 
+                            class="delete-button"
+                            on:click={() => showDeleteConfirm(action)}
+                        >
+                            <i class="fa-solid fa-trash"></i>
+                            <span>Eliminar</span>
+                        </button>
+                    </div>
+                    
+                    <!-- Botón de acción principal (foreground) -->
+                    <button 
+                        class="action-btn"
+                        class:swiping={swipeData.get(action.id)?.isSwiping}
+                        style="background-color: {subject?.color}33; color: {subject?.color}; transform: translateX({swipeData.get(action.id)?.deltaX || 0}px);"
+                        on:click={() => registerEvent(action.name)}
+                        on:touchstart={(e) => handleTouchStart(e, action)}
+                        on:touchmove={(e) => handleTouchMove(e, action)}
+                        on:touchend={(e) => handleTouchEnd(e, action)}
+                        disabled={registering}
+                    >
+                        {action.name}
+                    </button>
+                </div>
             {/each}
 
             {#if showAddAction}
@@ -167,6 +314,14 @@
         </div>
     </main>
 </div>
+
+<!-- Modal de confirmación de eliminación -->
+<DeleteConfirmModal 
+    bind:show={showDeleteModal}
+    eventData={actionToDelete}
+    on:confirm={confirmDelete}
+    on:cancel={cancelDelete}
+/>
 
 <style>
     .container {
@@ -211,14 +366,64 @@
         gap: var(--spacing-sm);
     }
 
+    /* Swipe to delete */
+    .action-wrapper {
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .delete-background {
+        position: absolute;
+        top: 0;
+        right: 0;
+        bottom: 0;
+        width: 80px;
+        background: #ff6b6b;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 1;
+    }
+    
+    .delete-button {
+        background: none;
+        border: none;
+        color: var(--white);
+        cursor: pointer;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 2px;
+        padding: var(--spacing-xs);
+        font-size: 0.75rem;
+        height: 100%;
+        width: 100%;
+    }
+    
+    .delete-button i {
+        font-size: 1.2rem;
+    }
+    
+    .delete-button:active {
+        background: rgba(255, 255, 255, 0.1);
+    }
+
     .action-btn {
         padding: var(--spacing-lg);
         border: none;
         cursor: pointer;
-        transition: all 0.2s ease;
+        transition: transform 0.3s ease, opacity 0.2s ease;
         font-size: 1rem;
         text-align: left;
         border-radius: 0;
+        position: relative;
+        z-index: 2;
+        width: 100%;
+        touch-action: pan-y; /* Permitir scroll vertical */
+    }
+    
+    .action-btn.swiping {
+        transition: none; /* Deshabilitar transición durante el swipe */
     }
 
     .action-btn:hover:not(:disabled) {
