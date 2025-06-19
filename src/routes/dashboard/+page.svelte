@@ -356,10 +356,10 @@
     color: var(--white);
     cursor: pointer;
     transition: background-color 0.2s ease;
-    font-size: 1rem;
+    font-size: 1.1rem;
+    font-weight: 500;
     width: 100%;
-    min-height: 50px;
-    height: auto;
+    flex: 1;
     border-radius: var(--radius-sm);
     display: flex;
     align-items: center;
@@ -381,7 +381,7 @@
   .action-placeholder {
     background: rgba(255, 255, 255, 0.1);
     border-radius: var(--radius-sm);
-    min-height: 50px;
+    flex: 1;
     animation: pulse 1.5s ease-in-out infinite;
   }
 
@@ -522,13 +522,8 @@
     }
 
     .action-btn {
-      font-size: 0.9rem;
-      min-height: 45px;
+      font-size: 1rem;
       padding: var(--spacing-sm);
-    }
-
-    .action-placeholder {
-      min-height: 45px;
     }
 
     .subject-header h2 {
@@ -561,13 +556,8 @@
     }
 
     .action-btn {
-      font-size: 0.8rem;
-      min-height: 40px;
+      font-size: 0.9rem;
       padding: var(--spacing-xs);
-    }
-
-    .action-placeholder {
-      min-height: 40px;
     }
 
     .subject-header {
@@ -589,9 +579,8 @@
       padding: var(--spacing-md);
     }
 
-    .action-btn, .action-placeholder {
-      min-height: 35px;
-      font-size: 0.85rem;
+    .action-btn {
+      font-size: 0.95rem;
       padding: var(--spacing-xs);
     }
   }
@@ -617,9 +606,8 @@
       gap: var(--spacing-xs);
     }
 
-    .action-btn, .action-placeholder {
-      min-height: 32px;
-      font-size: 0.75rem;
+    .action-btn {
+      font-size: 0.85rem;
       padding: var(--spacing-xs);
     }
   }
