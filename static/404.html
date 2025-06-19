@@ -1,14 +1,28 @@
 <!DOCTYPE html>
 <html>
   <head>
-    <meta http-equiv="refresh" content="0; url=/my-baby-tracker/" />
+    <meta charset="utf-8">
+    <title>Baby Tracker</title>
     <script>
-      // Redirige a la SPA manteniendo la ruta original
-      var path = window.location.pathname.replace('/my-baby-tracker', '');
-      window.location.replace('/my-baby-tracker/#' + path + window.location.search + window.location.hash);
+      // Para GitHub Pages - redirigir rutas SPA a index.html
+      var currentPath = window.location.pathname;
+      
+      // Si la ruta ya incluye /my-baby-tracker/, redireccionar al index para que SvelteKit maneje la ruta
+      if (currentPath.startsWith('/my-baby-tracker/') && currentPath !== '/my-baby-tracker/') {
+        window.location.replace('/my-baby-tracker/');
+      } else if (currentPath === '/my-baby-tracker') {
+        // Asegurar que termine con /
+        window.location.replace('/my-baby-tracker/');
+      } else {
+        // Para cualquier otra ruta, ir al home
+        window.location.replace('/my-baby-tracker/');
+      }
     </script>
   </head>
   <body>
-    <h1>Redirigiendo...</h1>
+    <div style="font-family: Arial, sans-serif; text-align: center; padding: 2rem;">
+      <h1>Cargando Baby Tracker...</h1>
+      <p>Redirigiendo...</p>
+    </div>
   </body>
 </html>

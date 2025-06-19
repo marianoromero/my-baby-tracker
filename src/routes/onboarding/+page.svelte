@@ -1,4 +1,9 @@
 <!-- src/routes/onboarding/+page.svelte -->
+<script context="module">
+  // Prerender esta página para GitHub Pages
+  export const prerender = true;
+</script>
+
 <script>
   import { goto } from '$app/navigation'
   import { base } from '$app/paths'
