@@ -11,7 +11,7 @@ const config = {
             assets: 'build',
             fallback: '404.html', // Recomendado para SPA
             precompress: false,
-            strict: true
+            strict: false // Cambiar a false para permitir rutas dinámicas
         }),
 
         // ¡¡¡CRÍTICO PARA GITHUB PAGES!!!

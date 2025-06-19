@@ -22,19 +22,20 @@ export async function initializeFamily() {
     console.log('Usuario actual:', currentUser?.id)
     
     // Verificar si el usuario ya tiene una familia
-    const { data: familyMember, error: memberError } = await supabase
+    const { data: familyMembers, error: memberError } = await supabase
       .from('family_members')
       .select('family_id')
       .eq('user_id', currentUser.id)
-      .single()
 
-    console.log('Family member query:', { familyMember, memberError })
+    console.log('Family member query:', { familyMembers, memberError })
 
-    if (memberError && memberError.code !== 'PGRST116') {
+    if (memberError) {
       console.error('Error al buscar familia:', memberError)
       familyLoading.set(false)
       return
     }
+
+    const familyMember = familyMembers && familyMembers.length > 0 ? familyMembers[0] : null
 
     let familyId
 
