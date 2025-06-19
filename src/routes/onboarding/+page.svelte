@@ -69,44 +69,9 @@
     try {
       console.log('Intentando crear familia para usuario:', $user.id)
       
-      // Usar función de base de datos para crear familia completa
-      const { data, error: rpcError } = await supabase.rpc('create_complete_family', {
-        user_id_param: $user.id
-      })
-
-      console.log('Respuesta de create_complete_family:', { data, rpcError })
-
-      if (rpcError) {
-        console.error('RPC Error:', rpcError)
-        
-        // Si la función no existe, intentar crear familia de la forma tradicional
-        if (rpcError.code === '42883') { // Función no existe
-          console.log('Función RPC no existe, usando método tradicional')
-          await createNewFamilyTraditional()
-          return
-        }
-        
-        error = `Error al procesar la solicitud: ${rpcError.message}`
-        loading = false
-        return
-      }
-
-      if (!data || !data.success) {
-        console.error('Función devolvió error:', data)
-        error = data?.message || 'Error al crear la familia'
-        loading = false
-        return
-      }
-
-      console.log('Familia creada exitosamente:', data)
-      success = true
-      
-      // Reinicializar la familia
-      await initializeFamily()
-      
-      setTimeout(() => {
-        goto(`${base}/dashboard`)
-      }, 1500)
+      // Usar directamente el método tradicional que sabemos que funciona
+      console.log('Usando método tradicional directamente')
+      await createNewFamilyTraditional()
 
     } catch (err) {
       console.error('Error creating family:', err)
@@ -127,7 +92,8 @@
         .single()
 
       if (familyError) {
-        error = 'Error al crear la familia'
+        console.error('Error creando familia:', familyError)
+        error = `Error al crear la familia: ${familyError.message}`
         loading = false
         return
       }
@@ -143,7 +109,8 @@
         })
 
       if (addMemberError) {
-        error = 'Error al configurar la familia'
+        console.error('Error añadiendo miembro:', addMemberError)
+        error = `Error al configurar la familia: ${addMemberError.message}`
         loading = false
         return
       }
@@ -168,7 +135,8 @@
         .select()
 
       if (subjectsError) {
-        error = 'Error al crear los sujetos'
+        console.error('Error creando sujetos:', subjectsError)
+        error = `Error al crear los sujetos: ${subjectsError.message}`
         loading = false
         return
       }
