@@ -79,6 +79,11 @@
       goto(`${base}/timeline?filter=today`)
     }
 
+    function navigateToFamily() {
+      closeMenu()
+      goto(`${base}/family`)
+    }
+
     function navigateToSubject(subjectId) {
       goto(`${base}/subject/${subjectId}`)
     }
@@ -214,6 +219,11 @@
       <button class="menu-item" on:click={navigateToTimeline}>
         <i class="fa-solid fa-history"></i>
         Timeline
+      </button>
+      
+      <button class="menu-item" on:click={navigateToFamily}>
+        <i class="fa-solid fa-users"></i>
+        Familia
       </button>
     </div>
 
