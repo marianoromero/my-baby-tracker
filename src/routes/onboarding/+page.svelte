@@ -67,24 +67,38 @@
     error = null
 
     try {
+      console.log('Intentando crear familia para usuario:', $user.id)
+      
       // Usar función de base de datos para crear familia completa
       const { data, error: rpcError } = await supabase.rpc('create_complete_family', {
         user_id_param: $user.id
       })
 
+      console.log('Respuesta de create_complete_family:', { data, rpcError })
+
       if (rpcError) {
         console.error('RPC Error:', rpcError)
-        error = 'Error al procesar la solicitud'
+        
+        // Si la función no existe, intentar crear familia de la forma tradicional
+        if (rpcError.code === '42883') { // Función no existe
+          console.log('Función RPC no existe, usando método tradicional')
+          await createNewFamilyTraditional()
+          return
+        }
+        
+        error = `Error al procesar la solicitud: ${rpcError.message}`
         loading = false
         return
       }
 
-      if (!data.success) {
-        error = data.message || 'Error al crear la familia'
+      if (!data || !data.success) {
+        console.error('Función devolvió error:', data)
+        error = data?.message || 'Error al crear la familia'
         loading = false
         return
       }
 
+      console.log('Familia creada exitosamente:', data)
       success = true
       
       // Reinicializar la familia
@@ -96,7 +110,110 @@
 
     } catch (err) {
       console.error('Error creating family:', err)
-      error = 'Error inesperado al crear la familia'
+      error = `Error inesperado: ${err.message}`
+      loading = false
+    }
+  }
+
+  async function createNewFamilyTraditional() {
+    try {
+      console.log('Creando familia de forma tradicional')
+      
+      // Crear nueva familia
+      const { data: newFamily, error: familyError } = await supabase
+        .from('families')
+        .insert({})
+        .select()
+        .single()
+
+      if (familyError) {
+        error = 'Error al crear la familia'
+        loading = false
+        return
+      }
+
+      console.log('Familia creada:', newFamily)
+
+      // Añadir al usuario como miembro
+      const { error: addMemberError } = await supabase
+        .from('family_members')
+        .insert({
+          user_id: $user.id,
+          family_id: newFamily.id
+        })
+
+      if (addMemberError) {
+        error = 'Error al configurar la familia'
+        loading = false
+        return
+      }
+
+      console.log('Usuario añadido como miembro')
+
+      // Crear sujetos por defecto
+      const defaultSubjects = [
+        { name: 'Mi bebé', icon: 'fa-baby', color: '#FF6B6B', position: 1 },
+        { name: 'Mi pareja', icon: 'fa-heart', color: '#4ECDC4', position: 2 },
+        { name: 'Yo', icon: 'fa-user', color: '#45B7D1', position: 3 }
+      ]
+
+      const { data: subjects, error: subjectsError } = await supabase
+        .from('subjects')
+        .insert(
+          defaultSubjects.map(subject => ({
+            ...subject,
+            family_id: newFamily.id
+          }))
+        )
+        .select()
+
+      if (subjectsError) {
+        error = 'Error al crear los sujetos'
+        loading = false
+        return
+      }
+
+      console.log('Sujetos creados:', subjects)
+
+      // Crear acciones por defecto para cada sujeto
+      const defaultActions = {
+        'Mi bebé': ['Lactancia', 'Cambio pañal', 'Siesta'],
+        'Mi pareja': ['Salió de casa', 'Llegó a casa', 'Comida'],
+        'Yo': ['Salí de casa', 'Llegué a casa', 'Descanso']
+      }
+
+      for (const subject of subjects) {
+        const actions = defaultActions[subject.name] || []
+        
+        if (actions.length > 0) {
+          const { error: actionsError } = await supabase
+            .from('actions')
+            .insert(
+              actions.map(actionName => ({
+                subject_id: subject.id,
+                name: actionName
+              }))
+            )
+          
+          if (actionsError) {
+            console.error('Error creando acciones para', subject.name, actionsError)
+          }
+        }
+      }
+
+      console.log('Familia completa creada exitosamente')
+      success = true
+      
+      // Reinicializar la familia
+      await initializeFamily()
+      
+      setTimeout(() => {
+        goto(`${base}/dashboard`)
+      }, 1500)
+
+    } catch (err) {
+      console.error('Error en método tradicional:', err)
+      error = `Error inesperado: ${err.message}`
       loading = false
     }
   }
