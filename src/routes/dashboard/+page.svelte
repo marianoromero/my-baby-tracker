@@ -172,8 +172,8 @@
             </div>
             
             <div class="actions-list">
-              {#if $actions[subject.id]}
-                {#each recentActions[subject.id] || [] as action}
+              {#if $actions[subject.id] && recentActions[subject.id]}
+                {#each recentActions[subject.id] as action}
                   <button 
                     class="action-btn"
                     on:click={() => registerEvent(subject.id, action.name)}
@@ -182,6 +182,11 @@
                     {action.name}
                   </button>
                 {/each}
+              {:else}
+                <!-- Placeholders durante la carga para evitar layout jumping -->
+                <div class="action-placeholder"></div>
+                <div class="action-placeholder"></div>
+                <div class="action-placeholder"></div>
               {/if}
             </div>
           </div>
@@ -285,13 +290,14 @@
     flex: 1;
     display: flex;
     flex-direction: column;
+    overflow-y: auto;
   }
 
   .main-sections {
     display: flex;
     flex-direction: column;
     width: 100%;
-    flex: 1;
+    min-height: 100%;
   }
 
   .subject-section {
@@ -299,7 +305,7 @@
     color: var(--white);
     margin-bottom: 0;
     width: 100%;
-    flex: 1;
+    min-height: 200px;
     display: flex;
     flex-direction: column;
   }
@@ -340,6 +346,8 @@
     gap: var(--spacing-sm);
     width: 100%;
     flex: 1;
+    min-height: 120px;
+    align-content: start;
   }
 
   .action-btn {
@@ -351,7 +359,15 @@
     transition: background-color 0.2s ease;
     font-size: 1rem;
     width: 100%;
-    height: 100%;
+    min-height: 50px;
+    height: auto;
+    border-radius: var(--radius-sm);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    word-wrap: break-word;
+    hyphens: auto;
   }
 
   .action-btn:hover:not(:disabled) {
@@ -361,6 +377,25 @@
   .action-btn:disabled {
     opacity: 0.5;
     cursor: not-allowed;
+  }
+
+  .action-placeholder {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: var(--radius-sm);
+    min-height: 50px;
+    animation: pulse 1.5s ease-in-out infinite;
+  }
+
+  @keyframes pulse {
+    0% {
+      opacity: 0.3;
+    }
+    50% {
+      opacity: 0.6;
+    }
+    100% {
+      opacity: 0.3;
+    }
   }
 
   /* Side Menu */
@@ -483,6 +518,34 @@
 
   /* Responsive */
   @media (max-width: 640px) {
+    .subject-section {
+      padding: var(--spacing-md);
+      min-height: 180px;
+    }
+
+    .actions-list {
+      grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+      min-height: 100px;
+    }
+
+    .action-btn {
+      font-size: 0.9rem;
+      min-height: 45px;
+      padding: var(--spacing-sm);
+    }
+
+    .action-placeholder {
+      min-height: 45px;
+    }
+
+    .subject-header h2 {
+      font-size: 1.3rem;
+    }
+
+    .subject-header i {
+      font-size: 1.8rem;
+    }
+
     :global(.notification) {
       right: var(--spacing-md);
       left: var(--spacing-md);
@@ -491,6 +554,104 @@
     
     :global(.notification.show) {
       transform: translateY(0);
+    }
+  }
+
+  /* Extra small screens */
+  @media (max-width: 480px) {
+    .subject-section {
+      padding: var(--spacing-sm);
+      min-height: 160px;
+    }
+
+    .actions-list {
+      grid-template-columns: repeat(2, 1fr);
+      gap: var(--spacing-xs);
+      min-height: 90px;
+    }
+
+    .action-btn {
+      font-size: 0.8rem;
+      min-height: 40px;
+      padding: var(--spacing-xs);
+    }
+
+    .action-placeholder {
+      min-height: 40px;
+    }
+
+    .subject-header {
+      margin-bottom: var(--spacing-sm);
+    }
+
+    .subject-header h2 {
+      font-size: 1.2rem;
+    }
+
+    .subject-header i {
+      font-size: 1.6rem;
+    }
+  }
+
+  /* Adjust sections based on available height and number of subjects */
+  @media (min-height: 600px) {
+    .main-sections {
+      min-height: calc(100vh - 60px);
+    }
+  }
+
+  @media (min-height: 800px) {
+    .subject-section {
+      max-height: calc((100vh - 60px) / 3);
+      min-height: 250px;
+    }
+  }
+
+  @media (max-height: 700px) {
+    .subject-section {
+      min-height: 160px;
+      padding: var(--spacing-md);
+    }
+
+    .actions-list {
+      min-height: 80px;
+      grid-template-columns: repeat(auto-fit, minmax(90px, 1fr));
+    }
+
+    .action-btn, .action-placeholder {
+      min-height: 35px;
+      font-size: 0.85rem;
+      padding: var(--spacing-xs);
+    }
+  }
+
+  @media (max-height: 600px) {
+    .subject-section {
+      min-height: 140px;
+      padding: var(--spacing-sm);
+    }
+
+    .subject-header {
+      margin-bottom: var(--spacing-xs);
+    }
+
+    .subject-header h2 {
+      font-size: 1.1rem;
+    }
+
+    .subject-header i {
+      font-size: 1.4rem;
+    }
+
+    .actions-list {
+      min-height: 60px;
+      gap: var(--spacing-xs);
+    }
+
+    .action-btn, .action-placeholder {
+      min-height: 28px;
+      font-size: 0.75rem;
+      padding: var(--spacing-xs);
     }
   }
 </style>
