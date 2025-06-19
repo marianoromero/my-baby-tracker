@@ -5,11 +5,13 @@
     import { supabase } from '$lib/supabase'
     import { goto } from '$app/navigation'
     import { base } from '$app/paths'
+    import SplashScreen from '$lib/components/SplashScreen.svelte'
     
     let selectedSubject = null
     let registering = false
     let menuOpen = false
     let recentActions = {}
+    let showSplash = true
     
     // Registrar un evento
     async function registerEvent(subjectId, actionName) {
@@ -140,26 +142,37 @@
       loadRecentActions()
     }
 
+    // Ocultar splash screen cuando los datos estén listos
+    $: if (!$familyLoading && $family && $subjects && $actions) {
+      // Verificar si ya tenemos acciones recientes o si no hay sujetos
+      const hasData = $subjects.length === 0 || Object.keys(recentActions).length > 0
+      
+      if (hasData && showSplash) {
+        // Dar un pequeño delay para asegurar que la UI esté lista
+        setTimeout(() => {
+          showSplash = false
+        }, 800)
+      }
+    }
+
     // Reactively handle user state changes
     $: if ($user === null) {
       console.log('User is not authenticated')
     }
 </script>
 
-<div class="container">
-  <header>
-    <h1>Baby Tracker</h1>
-    <button class="menu-button" on:click={toggleMenu}>
-      <i class="fa-solid fa-bars"></i>
-    </button>
-  </header>
+{#if $familyLoading || showSplash}
+  <SplashScreen bind:show={showSplash} />
+{:else}
+  <div class="container">
+    <header>
+      <h1>Baby Tracker</h1>
+      <button class="menu-button" on:click={toggleMenu}>
+        <i class="fa-solid fa-bars"></i>
+      </button>
+    </header>
 
-  {#if $familyLoading}
-    <div class="loading">
-      <i class="fa-solid fa-spinner fa-spin"></i>
-      <p>Cargando datos familiares...</p>
-    </div>
-  {:else if $family}
+    {#if $family}
     <main>
       <!-- Secciones principales -->
       <div class="main-sections">
@@ -201,9 +214,9 @@
       </button>
     </div>
   {/if}
-</div>
+  </div>
 
-<!-- Side Menu -->
+  <!-- Side Menu -->
 <div class="side-menu" class:open={menuOpen}>
   <div class="menu-header">
     <button class="close-button" on:click={closeMenu}>
@@ -243,9 +256,10 @@
   </div>
 </div>
 
-<!-- Overlay para cerrar el menú al hacer click fuera -->
-{#if menuOpen}
-  <div class="overlay" on:click={closeMenu}></div>
+  <!-- Overlay para cerrar el menú al hacer click fuera -->
+  {#if menuOpen}
+    <div class="overlay" on:click={closeMenu}></div>
+  {/if}
 {/if}
 
 <style>
