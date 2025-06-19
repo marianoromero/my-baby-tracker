@@ -191,21 +191,30 @@ export async function joinFamilyWithCode(invitationCode) {
   }
 }
 
+let currentUserId = null
+
 // Suscribirse a cambios de la familia cuando el usuario cambie
 user.subscribe(async ($user) => {
-  if ($user) {
-    console.log('Usuario cambió, inicializando familia para:', $user.id)
-    const result = await initializeFamily()
+  const newUserId = $user?.id || null
+  
+  // Solo procesar si el usuario realmente cambió
+  if (newUserId !== currentUserId) {
+    currentUserId = newUserId
     
-    // Si el usuario necesita onboarding, esto se manejará en el layout
-    if (result?.needsOnboarding) {
-      console.log('Usuario necesita ir a onboarding')
+    if ($user) {
+      console.log('Usuario cambió, inicializando familia para:', $user.id)
+      const result = await initializeFamily()
+      
+      // Si el usuario necesita onboarding, esto se manejará en el layout
+      if (result?.needsOnboarding) {
+        console.log('Usuario necesita ir a onboarding')
+      }
+    } else {
+      console.log('Usuario cerró sesión, limpiando datos')
+      family.set(null)
+      subjects.set([])
+      actions.set({})
+      familyLoading.set(false)
     }
-  } else {
-    console.log('Usuario cerró sesión, limpiando datos')
-    family.set(null)
-    subjects.set([])
-    actions.set({})
-    familyLoading.set(false)
   }
 })
