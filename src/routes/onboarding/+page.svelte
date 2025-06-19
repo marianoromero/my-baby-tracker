@@ -27,43 +27,21 @@
     error = null
 
     try {
-      // Buscar familia por código
-      const { data: familyData, error: familyError } = await supabase
-        .from('families')
-        .select('id')
-        .eq('invitation_code', familyCode.toUpperCase().trim())
-        .single()
+      // Usar función de base de datos para unirse a familia
+      const { data, error: rpcError } = await supabase.rpc('join_family_by_code', {
+        user_id_param: $user.id,
+        invitation_code_param: familyCode.trim()
+      })
 
-      if (familyError || !familyData) {
-        error = 'Código de familia inválido'
+      if (rpcError) {
+        console.error('RPC Error:', rpcError)
+        error = 'Error al procesar la solicitud'
         loading = false
         return
       }
 
-      // Verificar si ya es miembro
-      const { data: existingMember } = await supabase
-        .from('family_members')
-        .select('user_id')
-        .eq('user_id', $user.id)
-        .eq('family_id', familyData.id)
-        .single()
-
-      if (existingMember) {
-        error = 'Ya eres miembro de esta familia'
-        loading = false
-        return
-      }
-
-      // Añadir como miembro
-      const { error: addError } = await supabase
-        .from('family_members')
-        .insert({
-          user_id: $user.id,
-          family_id: familyData.id
-        })
-
-      if (addError) {
-        error = 'Error al unirse a la familia'
+      if (!data.success) {
+        error = data.message || 'Error al unirse a la familia'
         loading = false
         return
       }
@@ -78,6 +56,7 @@
       }, 1500)
 
     } catch (err) {
+      console.error('Error joining family:', err)
       error = 'Error inesperado'
       loading = false
     }
@@ -88,76 +67,22 @@
     error = null
 
     try {
-      // Crear nueva familia
-      const { data: newFamily, error: familyError } = await supabase
-        .from('families')
-        .insert({})
-        .select()
-        .single()
+      // Usar función de base de datos para crear familia completa
+      const { data, error: rpcError } = await supabase.rpc('create_complete_family', {
+        user_id_param: $user.id
+      })
 
-      if (familyError) {
-        error = 'Error al crear la familia'
+      if (rpcError) {
+        console.error('RPC Error:', rpcError)
+        error = 'Error al procesar la solicitud'
         loading = false
         return
       }
 
-      // Añadir al usuario como miembro
-      const { error: addMemberError } = await supabase
-        .from('family_members')
-        .insert({
-          user_id: $user.id,
-          family_id: newFamily.id
-        })
-
-      if (addMemberError) {
-        error = 'Error al configurar la familia'
+      if (!data.success) {
+        error = data.message || 'Error al crear la familia'
         loading = false
         return
-      }
-
-      // Crear sujetos por defecto
-      const defaultSubjects = [
-        { name: 'Mi bebé', icon: 'fa-baby', color: '#FF6B6B', position: 1 },
-        { name: 'Mi pareja', icon: 'fa-heart', color: '#4ECDC4', position: 2 },
-        { name: 'Yo', icon: 'fa-user', color: '#45B7D1', position: 3 }
-      ]
-
-      const { data: subjects, error: subjectsError } = await supabase
-        .from('subjects')
-        .insert(
-          defaultSubjects.map(subject => ({
-            ...subject,
-            family_id: newFamily.id
-          }))
-        )
-        .select()
-
-      if (subjectsError) {
-        error = 'Error al crear los sujetos'
-        loading = false
-        return
-      }
-
-      // Crear acciones por defecto para cada sujeto
-      const defaultActions = {
-        'Mi bebé': ['Lactancia', 'Cambio pañal', 'Siesta'],
-        'Mi pareja': ['Salió de casa', 'Llegó a casa', 'Comida'],
-        'Yo': ['Salí de casa', 'Llegué a casa', 'Descanso']
-      }
-
-      for (const subject of subjects) {
-        const actions = defaultActions[subject.name] || []
-        
-        if (actions.length > 0) {
-          await supabase
-            .from('actions')
-            .insert(
-              actions.map(actionName => ({
-                subject_id: subject.id,
-                name: actionName
-              }))
-            )
-        }
       }
 
       success = true
