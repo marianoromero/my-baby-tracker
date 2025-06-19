@@ -150,11 +150,11 @@
 
       console.log('Usuario añadido como miembro')
 
-      // Crear sujetos por defecto
+      // Crear sujetos por defecto (sin position para evitar constraint)
       const defaultSubjects = [
-        { name: 'Mi bebé', icon: 'fa-baby', color: '#FF6B6B', position: 1 },
-        { name: 'Mi pareja', icon: 'fa-heart', color: '#4ECDC4', position: 2 },
-        { name: 'Yo', icon: 'fa-user', color: '#45B7D1', position: 3 }
+        { name: 'Mi bebé', icon: 'fa-baby', color: '#FF6B6B' },
+        { name: 'Mi pareja', icon: 'fa-heart', color: '#4ECDC4' },
+        { name: 'Yo', icon: 'fa-user', color: '#45B7D1' }
       ]
 
       const { data: subjects, error: subjectsError } = await supabase
