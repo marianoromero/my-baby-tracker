@@ -121,6 +121,25 @@
       }
 
       console.log('Familia creada:', newFamily)
+      console.log('Código generado vs código en DB:', invitationCode, 'vs', newFamily.invitation_code)
+      
+      // Si la base de datos sobrescribió el código, actualizarlo manualmente
+      if (newFamily.invitation_code !== invitationCode) {
+        console.log('La base de datos sobrescribió el código, actualizando...')
+        const { data: updatedFamily, error: updateError } = await supabase
+          .from('families')
+          .update({ invitation_code: invitationCode })
+          .eq('id', newFamily.id)
+          .select()
+          .single()
+        
+        if (updateError) {
+          console.error('Error actualizando código:', updateError)
+        } else {
+          console.log('Código actualizado exitosamente:', updatedFamily)
+          newFamily.invitation_code = invitationCode
+        }
+      }
 
       // Añadir al usuario como miembro
       const { error: addMemberError } = await supabase
