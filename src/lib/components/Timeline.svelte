@@ -84,7 +84,8 @@
     }
 
     // Filtrar eventos por sujetos seleccionados
-    $: filteredEvents = Object.fromEntries(
+    // Hacer que sea reactivo a cambios en subjects para actualizar nombres de usuario  
+    $: filteredEvents = $subjects && Object.fromEntries(
       Object.entries($groupedEvents).map(([date, events]) => [
         date,
         events.filter(event => {

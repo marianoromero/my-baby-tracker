@@ -1,6 +1,7 @@
 // src/lib/stores/events.js
 import { writable, derived } from 'svelte/store'
 import { supabase } from '$lib/supabase'
+import { subjects } from './family'
 import { family } from './family'
 
 /** @typedef {'today' | 'yesterday' | 'week' | 'month' | 'all'} FilterType */
@@ -87,7 +88,11 @@ export async function loadEvents(filter = 'today') {
     let query = supabase
       .from('events')
       .select(`
-        *,
+        id,
+        action_name,
+        event_timestamp,
+        user_id,
+        subject_id,
         subjects (
           id,
           name,
@@ -172,7 +177,11 @@ export function subscribeToEvents(familyId) {
         const { data: newEvent } = await supabase
           .from('events')
           .select(`
-            *,
+            id,
+            action_name,
+            event_timestamp,
+            user_id,
+            subject_id,
             subjects (
               id,
               name,
@@ -206,6 +215,29 @@ export function formatEventTime(timestamp) {
 
 // Función para obtener el nombre del usuario
 /** @param {Event} event */
+// Variable para cache de subjects
+let subjectsCache = []
+subjects.subscribe(value => {
+  subjectsCache = value
+})
+
 export function getUserName(event) {
-  return 'Usuario' // Por ahora retornamos un valor por defecto
+  // Buscar el subject que está vinculado al usuario que creó el evento
+  const linkedSubject = subjectsCache.find(subject => 
+    subject.linked_user_id === event.user_id
+  )
+  
+  if (linkedSubject) {
+    return linkedSubject.name
+  }
+  
+  // Fallback: intentar obtener información del usuario
+  // Si tenemos el email del usuario en el evento
+  if (event.user_email) {
+    const username = event.user_email.split('@')[0]
+    return username
+  }
+  
+  // Último fallback
+  return 'Usuario'
 }
