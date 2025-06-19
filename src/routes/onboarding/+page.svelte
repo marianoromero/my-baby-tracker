@@ -89,14 +89,27 @@
     }
   }
 
+  // Generar código de invitación de 6 caracteres
+  function generateInvitationCode() {
+    const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
+    let result = ''
+    for (let i = 0; i < 6; i++) {
+      result += characters.charAt(Math.floor(Math.random() * characters.length))
+    }
+    return result
+  }
+
   async function createNewFamilyTraditional() {
     try {
       console.log('Creando familia de forma tradicional')
       
+      const invitationCode = generateInvitationCode()
+      console.log('Código de invitación generado:', invitationCode)
+      
       // Crear nueva familia
       const { data: newFamily, error: familyError } = await supabase
         .from('families')
-        .insert({})
+        .insert({ invitation_code: invitationCode })
         .select()
         .single()
 
