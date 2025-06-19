@@ -9,12 +9,20 @@
       groupedEvents,
       formatEventTime,
       getUserName,
-      subscribeToEvents
+      subscribeToEvents,
+      deleteEvent
     } from '$lib/stores/events'
     import { family, subjects } from '$lib/stores/family'
+    import DeleteConfirmModal from './DeleteConfirmModal.svelte'
     
     let subscription = null
     let selectedSubjects = new Set()
+    
+    // Variables para swipe-to-delete
+    let swipeData = new Map() // Para trackear el estado de cada evento
+    let showDeleteModal = false
+    let eventToDelete = null
+    let deleting = false
     
     const filters = [
       { value: 'today', label: 'Hoy', icon: 'fa-calendar-day' },
@@ -83,6 +91,109 @@
       return iconMap[actionName] || 'fa-check'
     }
 
+    // Funciones para manejar swipe-to-delete
+    function handleTouchStart(event, eventData) {
+      const touch = event.touches[0]
+      swipeData.set(eventData.id, {
+        startX: touch.clientX,
+        startY: touch.clientY,
+        deltaX: 0,
+        isSwiping: false,
+        revealed: false
+      })
+    }
+    
+    function handleTouchMove(event, eventData) {
+      const touch = event.touches[0]
+      const data = swipeData.get(eventData.id)
+      
+      if (!data) return
+      
+      const deltaX = touch.clientX - data.startX
+      const deltaY = touch.clientY - data.startY
+      
+      // Determinar si es un swipe horizontal
+      if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > 10) {
+        event.preventDefault()
+        data.isSwiping = true
+        data.deltaX = Math.min(0, deltaX) // Solo permitir swipe hacia la izquierda
+        swipeData.set(eventData.id, data)
+        swipeData = swipeData // Trigger reactivity
+      }
+    }
+    
+    function handleTouchEnd(event, eventData) {
+      const data = swipeData.get(eventData.id)
+      
+      if (!data) return
+      
+      // Si se deslizó más de 80px, revelar el botón de eliminar
+      if (data.deltaX < -80) {
+        data.revealed = true
+        data.deltaX = -80
+      } else {
+        data.revealed = false
+        data.deltaX = 0
+      }
+      
+      data.isSwiping = false
+      swipeData.set(eventData.id, data)
+      swipeData = swipeData // Trigger reactivity
+    }
+    
+    function showDeleteConfirm(eventData) {
+      eventToDelete = eventData
+      showDeleteModal = true
+      
+      // Cerrar el swipe del evento
+      const data = swipeData.get(eventData.id)
+      if (data) {
+        data.revealed = false
+        data.deltaX = 0
+        swipeData.set(eventData.id, data)
+        swipeData = swipeData
+      }
+    }
+    
+    async function confirmDelete(event) {
+      if (!event.detail) return
+      
+      deleting = true
+      const result = await deleteEvent(event.detail.id)
+      
+      if (result.success) {
+        // Limpiar datos del swipe
+        swipeData.delete(event.detail.id)
+        swipeData = swipeData
+        
+        // Mostrar notificación de éxito
+        showNotification('✅ Evento eliminado correctamente')
+      } else {
+        showNotification('❌ Error al eliminar el evento')
+      }
+      
+      deleting = false
+      eventToDelete = null
+    }
+    
+    function cancelDelete() {
+      eventToDelete = null
+    }
+    
+    function showNotification(message) {
+      const notification = document.createElement('div')
+      notification.className = 'notification'
+      notification.textContent = message
+      document.body.appendChild(notification)
+      
+      setTimeout(() => notification.classList.add('show'), 10)
+      
+      setTimeout(() => {
+        notification.classList.remove('show')
+        setTimeout(() => notification.remove(), 300)
+      }, 3000)
+    }
+
     // Filtrar eventos por sujetos seleccionados
     // Hacer que sea reactivo a cambios en subjects para actualizar nombres de usuario  
     $: filteredEvents = $subjects && Object.fromEntries(
@@ -148,25 +259,43 @@
             
             <div class="events">
               {#each dateEvents as event}
-                <div 
-                  class="event-item"
-                  style="border-left-color: {event.subjects?.color}"
-                >
-                  <div class="event-time">
-                    {formatEventTime(event.event_timestamp)}
+                <div class="event-wrapper">
+                  <!-- Botón de eliminar (background) -->
+                  <div class="delete-background">
+                    <button 
+                      class="delete-button"
+                      on:click={() => showDeleteConfirm(event)}
+                    >
+                      <i class="fa-solid fa-trash"></i>
+                      <span>Eliminar</span>
+                    </button>
                   </div>
                   
-                  <div class="event-icon" style="background-color: {event.subjects?.color}">
-                    <i class="fa-solid {getActionIcon(event.action_name)}"></i>
-                  </div>
-                  
-                  <div class="event-content">
-                    <div class="event-subject">
-                      <i class="fa-solid {event.subjects?.icon}"></i>
-                      {event.subjects?.name}
+                  <!-- Evento principal (foreground) -->
+                  <div 
+                    class="event-item"
+                    class:swiping={swipeData.get(event.id)?.isSwiping}
+                    style="border-left-color: {event.subjects?.color}; transform: translateX({swipeData.get(event.id)?.deltaX || 0}px);"
+                    on:touchstart={(e) => handleTouchStart(e, event)}
+                    on:touchmove={(e) => handleTouchMove(e, event)}
+                    on:touchend={(e) => handleTouchEnd(e, event)}
+                  >
+                    <div class="event-time">
+                      {formatEventTime(event.event_timestamp)}
                     </div>
-                    <div class="event-action">{event.action_name}</div>
-                    <div class="event-user">por {getUserName(event)}</div>
+                    
+                    <div class="event-icon" style="background-color: {event.subjects?.color}">
+                      <i class="fa-solid {getActionIcon(event.action_name)}"></i>
+                    </div>
+                    
+                    <div class="event-content">
+                      <div class="event-subject">
+                        <i class="fa-solid {event.subjects?.icon}"></i>
+                        {event.subjects?.name}
+                      </div>
+                      <div class="event-action">{event.action_name}</div>
+                      <div class="event-user">por {getUserName(event)}</div>
+                    </div>
                   </div>
                 </div>
               {/each}
@@ -176,6 +305,14 @@
       </div>
     {/if}
   </div>
+  
+  <!-- Modal de confirmación de eliminación -->
+  <DeleteConfirmModal 
+    bind:show={showDeleteModal}
+    eventData={eventToDelete}
+    on:confirm={confirmDelete}
+    on:cancel={cancelDelete}
+  />
   
   <style>
     .timeline-container {
@@ -295,6 +432,48 @@
       gap: 0;
     }
   
+    /* Swipe to delete */
+    .event-wrapper {
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .delete-background {
+      position: absolute;
+      top: 0;
+      right: 0;
+      bottom: 0;
+      width: 80px;
+      background: #ff6b6b;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1;
+    }
+    
+    .delete-button {
+      background: none;
+      border: none;
+      color: var(--white);
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 2px;
+      padding: var(--spacing-xs);
+      font-size: 0.75rem;
+      height: 100%;
+      width: 100%;
+    }
+    
+    .delete-button i {
+      font-size: 1.2rem;
+    }
+    
+    .delete-button:active {
+      background: rgba(255, 255, 255, 0.1);
+    }
+
     /* Evento individual */
     .event-item {
       display: grid;
@@ -304,7 +483,14 @@
       background: var(--white);
       border-left: 3px solid;
       align-items: center;
-      transition: background-color 0.2s ease;
+      transition: transform 0.3s ease, background-color 0.2s ease;
+      position: relative;
+      z-index: 2;
+      touch-action: pan-y; /* Permitir scroll vertical */
+    }
+    
+    .event-item.swiping {
+      transition: none; /* Deshabilitar transición durante el swipe */
     }
   
     .event-item:hover {
@@ -426,6 +612,38 @@
       .event-time {
         grid-column: 1 / -1;
         margin-bottom: var(--spacing-xs);
+      }
+    }
+    
+    /* Notificaciones */
+    :global(.notification) {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      background: var(--primary);
+      color: var(--white);
+      padding: var(--spacing-md) var(--spacing-lg);
+      border-radius: var(--radius-md);
+      box-shadow: var(--shadow-lg);
+      transform: translateX(400px);
+      transition: transform 0.3s ease;
+      z-index: 10001;
+      font-size: 0.9rem;
+    }
+
+    :global(.notification.show) {
+      transform: translateX(0);
+    }
+    
+    @media (max-width: 640px) {
+      :global(.notification) {
+        right: var(--spacing-md);
+        left: var(--spacing-md);
+        transform: translateY(-100px);
+      }
+      
+      :global(.notification.show) {
+        transform: translateY(0);
       }
     }
   </style>

@@ -241,3 +241,28 @@ export function getUserName(event) {
   // Último fallback
   return 'Usuario'
 }
+
+// Función para eliminar un evento
+export async function deleteEvent(eventId) {
+  try {
+    const { error } = await supabase
+      .from('events')
+      .delete()
+      .eq('id', eventId)
+    
+    if (error) {
+      console.error('Error eliminando evento:', error)
+      return { success: false, error: error.message }
+    }
+    
+    // Remover el evento del store local
+    events.update(currentEvents => 
+      currentEvents.filter(event => event.id !== eventId)
+    )
+    
+    return { success: true }
+  } catch (err) {
+    console.error('Error inesperado:', err)
+    return { success: false, error: 'Error inesperado' }
+  }
+}
