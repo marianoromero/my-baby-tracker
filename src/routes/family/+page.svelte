@@ -11,6 +11,28 @@
   let success = false
   let editingSubject = null
   let editingName = ''
+  let showAddMember = false
+  let newMemberName = ''
+  let newMemberIcon = 'fa-user'
+  let newMemberColor = '#45B7D1'
+
+  // Opciones predefinidas para iconos y colores
+  const iconOptions = [
+    { value: 'fa-user', label: 'Persona' },
+    { value: 'fa-baby', label: 'Bebé' },
+    { value: 'fa-heart', label: 'Pareja' },
+    { value: 'fa-user-friends', label: 'Familia' },
+    { value: 'fa-child', label: 'Niño/a' },
+    { value: 'fa-user-md', label: 'Doctor/a' },
+    { value: 'fa-graduation-cap', label: 'Estudiante' },
+    { value: 'fa-briefcase', label: 'Trabajo' }
+  ]
+
+  const colorOptions = [
+    '#45B7D1', '#FF6B6B', '#4ECDC4', '#96CEB4', 
+    '#FECA57', '#FF9FF3', '#54A0FF', '#5F27CD',
+    '#00D2D3', '#FF9F43', '#A55EEA', '#26DE81'
+  ]
 
   // Función para actualizar el nombre de un sujeto
   async function updateSubjectName(subjectId, newName) {
@@ -147,6 +169,94 @@
     }
   }
 
+  // Función para agregar un nuevo miembro
+  async function addNewMember() {
+    if (!newMemberName.trim()) {
+      error = 'El nombre del miembro es requerido'
+      return
+    }
+
+    loading = true
+    error = null
+
+    try {
+      console.log('Creando nuevo miembro:', { 
+        name: newMemberName.trim(), 
+        icon: newMemberIcon, 
+        color: newMemberColor 
+      })
+
+      const { data: newSubject, error: createError } = await supabase
+        .from('subjects')
+        .insert({
+          name: newMemberName.trim(),
+          icon: newMemberIcon,
+          color: newMemberColor,
+          family_id: $family.id
+        })
+        .select()
+        .single()
+
+      if (createError) {
+        console.error('Error creando miembro:', createError)
+        error = 'Error al crear el miembro'
+        return
+      }
+
+      console.log('Miembro creado exitosamente:', newSubject)
+
+      // Actualizar el store local
+      subjects.update(currentSubjects => [...currentSubjects, newSubject])
+
+      // Crear acciones por defecto para el nuevo miembro
+      const defaultActions = [
+        'Salió de casa',
+        'Llegó a casa', 
+        'Comida',
+        'Descanso'
+      ]
+
+      const { error: actionsError } = await supabase
+        .from('actions')
+        .insert(
+          defaultActions.map(actionName => ({
+            subject_id: newSubject.id,
+            name: actionName
+          }))
+        )
+
+      if (actionsError) {
+        console.error('Error creando acciones por defecto:', actionsError)
+        // No fallar por esto, las acciones se pueden agregar después
+      }
+
+      // Resetear formulario
+      showAddMember = false
+      newMemberName = ''
+      newMemberIcon = 'fa-user'
+      newMemberColor = '#45B7D1'
+
+      success = true
+      setTimeout(() => {
+        success = false
+      }, 3000)
+
+    } catch (err) {
+      console.error('Error:', err)
+      error = 'Error inesperado: ' + err.message
+    } finally {
+      loading = false
+    }
+  }
+
+  function cancelAddMember() {
+    showAddMember = false
+    newMemberName = ''
+    newMemberIcon = 'fa-user'
+    newMemberColor = '#45B7D1'
+    error = null
+  }
+
   function goBack() {
     goto(`${base}/dashboard`)
   }
@@ -195,8 +305,95 @@
     </div>
 
     <div class="members-section">
-      <h2>Miembros de la Familia</h2>
-      <p class="section-description">Puedes editar los nombres y asociarte con uno de los miembros</p>
+      <div class="section-header">
+        <div>
+          <h2>Miembros de la Familia</h2>
+          <p class="section-description">Puedes editar los nombres, asociarte con uno de los miembros o agregar nuevos</p>
+        </div>
+        <button 
+          class="add-member-btn"
+          on:click={() => showAddMember = true}
+          disabled={loading}
+        >
+          <i class="fa-solid fa-plus"></i>
+          Agregar Miembro
+        </button>
+      </div>
+
+      {#if showAddMember}
+        <div class="add-member-form">
+          <h3>Nuevo Miembro</h3>
+          
+          <div class="form-group">
+            <label for="memberName">Nombre</label>
+            <input
+              id="memberName"
+              type="text"
+              bind:value={newMemberName}
+              placeholder="Ej: Abuela, Tío Juan, Niñera..."
+              disabled={loading}
+              class="form-input"
+            />
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label for="memberIcon">Icono</label>
+              <select id="memberIcon" bind:value={newMemberIcon} disabled={loading} class="form-select">
+                {#each iconOptions as option}
+                  <option value={option.value}>{option.label}</option>
+                {/each}
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label>Color</label>
+              <div class="color-picker">
+                {#each colorOptions as color}
+                  <button
+                    type="button"
+                    class="color-option"
+                    class:selected={newMemberColor === color}
+                    style="background-color: {color}"
+                    on:click={() => newMemberColor = color}
+                    disabled={loading}
+                  ></button>
+                {/each}
+              </div>
+            </div>
+          </div>
+
+          <div class="member-preview">
+            <div class="preview-icon" style="background-color: {newMemberColor}">
+              <i class="fa-solid {newMemberIcon}"></i>
+            </div>
+            <span class="preview-name">{newMemberName || 'Nuevo miembro'}</span>
+          </div>
+
+          <div class="form-actions">
+            <button 
+              class="btn-secondary"
+              on:click={cancelAddMember}
+              disabled={loading}
+            >
+              Cancelar
+            </button>
+            <button 
+              class="btn-primary"
+              on:click={addNewMember}
+              disabled={loading || !newMemberName.trim()}
+            >
+              {#if loading}
+                <i class="fa-solid fa-spinner fa-spin"></i>
+                Creando...
+              {:else}
+                <i class="fa-solid fa-plus"></i>
+                Crear Miembro
+              {/if}
+            </button>
+          </div>
+        </div>
+      {/if}
       
       <div class="members-list">
         {#each $subjects as subject}
@@ -384,6 +581,14 @@
     box-shadow: var(--shadow-sm);
   }
 
+  .section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: var(--spacing-lg);
+    gap: var(--spacing-md);
+  }
+
   .members-section h2 {
     margin: 0 0 var(--spacing-sm);
     color: var(--primary);
@@ -391,9 +596,33 @@
   }
 
   .section-description {
-    margin: 0 0 var(--spacing-lg);
+    margin: 0;
     color: var(--gray-dark);
     font-size: 0.9rem;
+  }
+
+  .add-member-btn {
+    background: var(--primary);
+    color: var(--white);
+    border: none;
+    border-radius: var(--radius-md);
+    padding: var(--spacing-sm) var(--spacing-md);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+    font-size: 0.9rem;
+    white-space: nowrap;
+    transition: background-color 0.2s ease;
+  }
+
+  .add-member-btn:hover:not(:disabled) {
+    background: var(--primary-dark);
+  }
+
+  .add-member-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
   }
 
   .members-list {
@@ -573,10 +802,165 @@
     color: #363;
   }
 
+  /* Add Member Form */
+  .add-member-form {
+    background: var(--gray-light);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-lg);
+    margin-bottom: var(--spacing-lg);
+    border: 2px dashed var(--gray);
+  }
+
+  .add-member-form h3 {
+    margin: 0 0 var(--spacing-lg);
+    color: var(--primary);
+    font-size: 1.1rem;
+  }
+
+  .form-group {
+    margin-bottom: var(--spacing-md);
+  }
+
+  .form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--spacing-md);
+  }
+
+  .form-group label {
+    display: block;
+    margin-bottom: var(--spacing-xs);
+    font-weight: 600;
+    color: var(--gray-dark);
+  }
+
+  .form-input, .form-select {
+    width: 100%;
+    padding: var(--spacing-sm);
+    border: 2px solid var(--gray);
+    border-radius: var(--radius-md);
+    font-size: 1rem;
+    transition: border-color 0.2s ease;
+  }
+
+  .form-input:focus, .form-select:focus {
+    outline: none;
+    border-color: var(--primary);
+  }
+
+  .color-picker {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: var(--spacing-xs);
+  }
+
+  .color-option {
+    width: 32px;
+    height: 32px;
+    border: 3px solid transparent;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+
+  .color-option:hover {
+    transform: scale(1.1);
+  }
+
+  .color-option.selected {
+    border-color: var(--black);
+    transform: scale(1.15);
+  }
+
+  .member-preview {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-md);
+    padding: var(--spacing-md);
+    background: var(--white);
+    border-radius: var(--radius-lg);
+    margin: var(--spacing-md) 0;
+  }
+
+  .preview-icon {
+    width: 50px;
+    height: 50px;
+    border-radius: var(--radius-lg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--white);
+    font-size: 1.3rem;
+  }
+
+  .preview-name {
+    font-weight: 600;
+    color: var(--black);
+    font-size: 1.1rem;
+  }
+
+  .form-actions {
+    display: flex;
+    gap: var(--spacing-sm);
+    justify-content: flex-end;
+  }
+
+  .btn-primary, .btn-secondary {
+    padding: var(--spacing-sm) var(--spacing-lg);
+    border: none;
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+    font-size: 0.9rem;
+    transition: all 0.2s ease;
+  }
+
+  .btn-primary {
+    background: var(--primary);
+    color: var(--white);
+  }
+
+  .btn-primary:hover:not(:disabled) {
+    background: var(--primary-dark);
+  }
+
+  .btn-secondary {
+    background: var(--gray);
+    color: var(--white);
+  }
+
+  .btn-secondary:hover:not(:disabled) {
+    background: var(--gray-dark);
+  }
+
+  .btn-primary:disabled, .btn-secondary:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+
   /* Responsive */
   @media (max-width: 640px) {
     main {
       padding: var(--spacing-md);
+    }
+
+    .section-header {
+      flex-direction: column;
+      align-items: stretch;
+    }
+
+    .add-member-btn {
+      align-self: flex-start;
+    }
+
+    .form-row {
+      grid-template-columns: 1fr;
+    }
+
+    .color-picker {
+      grid-template-columns: repeat(4, 1fr);
     }
 
     .member-info {
@@ -591,6 +975,14 @@
 
     .edit-btn, .link-btn {
       flex: 1;
+      justify-content: center;
+    }
+
+    .form-actions {
+      flex-direction: column-reverse;
+    }
+
+    .btn-primary, .btn-secondary {
       justify-content: center;
     }
   }

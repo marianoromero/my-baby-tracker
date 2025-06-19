@@ -220,6 +220,51 @@ export async function joinFamilyWithCode(invitationCode) {
       return { error: 'Error al unirse a la familia' }
     }
 
+    // Crear un sujeto/miembro personal para el nuevo usuario
+    const { data: userProfile } = await supabase.auth.getUser()
+    const userEmail = userProfile?.user?.email || ''
+    const userName = userEmail.split('@')[0] || 'Nuevo miembro'
+
+    const { data: newSubject, error: subjectError } = await supabase
+      .from('subjects')
+      .insert({
+        name: userName,
+        icon: 'fa-user',
+        color: '#45B7D1',
+        family_id: familyData.id,
+        linked_user_id: userId
+      })
+      .select()
+      .single()
+
+    if (subjectError) {
+      console.error('Error creando sujeto para nuevo miembro:', subjectError)
+      // No fallar por esto, el usuario puede crear su propio sujeto después
+    } else {
+      console.log('Sujeto creado para nuevo miembro:', newSubject)
+      
+      // Crear acciones por defecto para el nuevo miembro
+      const defaultActions = [
+        'Salió de casa',
+        'Llegó a casa',
+        'Comida',
+        'Descanso'
+      ]
+
+      const { error: actionsError } = await supabase
+        .from('actions')
+        .insert(
+          defaultActions.map(actionName => ({
+            subject_id: newSubject.id,
+            name: actionName
+          }))
+        )
+
+      if (actionsError) {
+        console.error('Error creando acciones para nuevo miembro:', actionsError)
+      }
+    }
+
     return { success: true, familyId: familyData.id }
   } catch (err) {
     return { error: 'Error inesperado' }
