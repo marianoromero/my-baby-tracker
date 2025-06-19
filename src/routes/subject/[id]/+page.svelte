@@ -383,6 +383,7 @@
         align-items: center;
         justify-content: center;
         z-index: 1;
+        transform: translateX(80px); /* Hide by default */
     }
     
     .delete-button {
