@@ -23,6 +23,13 @@
     let editModalVisible = false
     let actionToEdit = null
     let editActionName = ''
+
+    // Variables para modal de biberón
+    let showBottleModal = false
+    let selectedBottleAction = null
+    let bottleAmount = 120 // Cantidad por defecto
+    let customAmount = ''
+    const bottleAmounts = [30, 60, 90, 120, 150, 180]
     
     // Cargar datos del sujeto y sus acciones
     $: {
@@ -45,25 +52,55 @@
     
     // Registrar un evento
     async function registerEvent(actionName) {
+        // Detectar si es una acción especial (biberón)
+        if (isBottleAction(actionName)) {
+            selectedBottleAction = actionName
+            showBottleModal = true
+            return
+        }
+
+        await executeEventRegistration(actionName)
+    }
+
+    // Ejecutar el registro real del evento
+    async function executeEventRegistration(actionName, additionalData = null) {
         registering = true
+        
+        // Por ahora, incluir la cantidad en el nombre de la acción hasta que se aplique la migración
+        const finalActionName = additionalData 
+            ? `${actionName} (${additionalData.amount}ml)`
+            : actionName
+        
+        const eventData = {
+            subject_id: subject.id,
+            user_id: $user.id,
+            action_name: finalActionName,
+            event_timestamp: new Date().toISOString()
+        }
         
         const { error } = await supabase
             .from('events')
-            .insert({
-                subject_id: subject.id,
-                user_id: $user.id,
-                action_name: actionName,
-                event_timestamp: new Date().toISOString()
-            })
+            .insert(eventData)
         
         if (error) {
             console.error('Error al registrar evento:', error)
             alert('Error al registrar el evento')
         } else {
-            showNotification(`✅ ${actionName} registrado`)
+            const message = additionalData 
+                ? `✅ ${actionName} registrado (${additionalData.amount}ml)`
+                : `✅ ${actionName} registrado`
+            showNotification(message)
         }
         
         registering = false
+    }
+
+    // Detectar si una acción es de tipo biberón
+    function isBottleAction(actionName) {
+        const bottleKeywords = ['biber', 'bibi', 'botella', 'milk', 'leche', 'formula']
+        return bottleKeywords.some(keyword => 
+            actionName.toLowerCase().includes(keyword)
+        )
     }
     
     // Añadir nueva acción
@@ -289,6 +326,30 @@
         actionToEdit = null
         editActionName = ''
     }
+
+    // Funciones para modal de biberón
+    function confirmBottleAmount() {
+        const amount = customAmount ? parseInt(customAmount) : bottleAmount
+        if (amount && amount > 0) {
+            executeEventRegistration(selectedBottleAction, { 
+                amount: amount,
+                type: 'bottle_feeding'
+            })
+            closeBottleModal()
+        }
+    }
+
+    function closeBottleModal() {
+        showBottleModal = false
+        selectedBottleAction = null
+        bottleAmount = 120
+        customAmount = ''
+    }
+
+    function selectBottleAmount(amount) {
+        bottleAmount = amount
+        customAmount = ''
+    }
 </script>
 
 <div class="container">
@@ -440,6 +501,61 @@
                         <i class="fa-solid fa-trash"></i>
                         Eliminar Acción
                     {/if}
+                </button>
+            </div>
+        </div>
+    </div>
+{/if}
+
+<!-- Modal de cantidad de biberón -->
+{#if showBottleModal}
+    <div class="modal-overlay" on:click={closeBottleModal}>
+        <div class="modal-content bottle-modal" on:click|stopPropagation>
+            <div class="modal-header">
+                <i class="fa-solid fa-baby-carriage bottle-icon"></i>
+                <h2>¿Cuánto tomó?</h2>
+                <p class="subtitle">Acción: <strong>{selectedBottleAction}</strong></p>
+            </div>
+            <div class="modal-body">
+                <div class="amount-grid">
+                    {#each bottleAmounts as amount}
+                        <button 
+                            class="amount-btn"
+                            class:selected={bottleAmount === amount && !customAmount}
+                            on:click={() => selectBottleAmount(amount)}
+                        >
+                            {amount}ml
+                        </button>
+                    {/each}
+                </div>
+                
+                <div class="custom-amount">
+                    <label for="custom-amount">Cantidad personalizada:</label>
+                    <div class="input-group">
+                        <input
+                            id="custom-amount"
+                            type="number"
+                            bind:value={customAmount}
+                            placeholder="Ej: 75"
+                            min="1"
+                            max="500"
+                            class="custom-input"
+                        />
+                        <span class="input-suffix">ml</span>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" on:click={closeBottleModal}>
+                    Cancelar
+                </button>
+                <button 
+                    class="btn btn-primary" 
+                    style="background-color: {subject?.color}"
+                    on:click={confirmBottleAmount}
+                >
+                    <i class="fa-solid fa-check"></i>
+                    Registrar
                 </button>
             </div>
         </div>
@@ -787,6 +903,108 @@
 
     .modal-header h2 {
         color: var(--dark);
+    }
+
+    /* Modal de biberón */
+    .bottle-modal {
+        max-width: 500px;
+    }
+
+    .bottle-icon {
+        font-size: 2rem;
+        color: #4CAF50;
+        margin-bottom: var(--spacing-sm);
+    }
+
+    .subtitle {
+        color: var(--gray-dark);
+        font-size: 0.9rem;
+        margin: var(--spacing-xs) 0 0 0;
+    }
+
+    .amount-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: var(--spacing-sm);
+        margin-bottom: var(--spacing-lg);
+    }
+
+    .amount-btn {
+        padding: var(--spacing-md);
+        border: 2px solid var(--light);
+        background: var(--white);
+        color: var(--dark);
+        border-radius: var(--radius-sm);
+        font-size: 1rem;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+
+    .amount-btn:hover {
+        border-color: var(--primary);
+        background: var(--background);
+    }
+
+    .amount-btn.selected {
+        border-color: var(--primary);
+        background: var(--primary);
+        color: var(--white);
+    }
+
+    .custom-amount {
+        border-top: 1px solid var(--light);
+        padding-top: var(--spacing-lg);
+    }
+
+    .custom-amount label {
+        display: block;
+        margin-bottom: var(--spacing-sm);
+        font-weight: 500;
+        color: var(--dark);
+    }
+
+    .input-group {
+        display: flex;
+        align-items: center;
+        border: 2px solid var(--light);
+        border-radius: var(--radius-sm);
+        background: var(--white);
+        transition: border-color 0.2s ease;
+    }
+
+    .input-group:focus-within {
+        border-color: var(--primary);
+    }
+
+    .custom-input {
+        border: none;
+        padding: var(--spacing-md);
+        font-size: 1rem;
+        flex: 1;
+        background: transparent;
+    }
+
+    .custom-input:focus {
+        outline: none;
+    }
+
+    .input-suffix {
+        padding: var(--spacing-md);
+        color: var(--gray-dark);
+        font-weight: 500;
+        border-left: 1px solid var(--light);
+    }
+
+    /* Responsive para modal de biberón */
+    @media (max-width: 640px) {
+        .amount-grid {
+            grid-template-columns: repeat(2, 1fr);
+        }
+        
+        .bottle-modal {
+            margin: var(--spacing-sm);
+        }
     }
 
     /* Notificaciones */
