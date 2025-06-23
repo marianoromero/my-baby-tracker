@@ -252,55 +252,71 @@
         <p>No hay eventos registrados en este período</p>
       </div>
     {:else}
-      <div class="events-list">
+      <div class="vertical-timeline">
+        <!-- Línea central -->
+        <div class="timeline-line"></div>
+        
         {#each Object.entries(filteredEvents) as [date, dateEvents]}
-          <div class="date-group">
-            <h3 class="date-header">{date}</h3>
-            
-            <div class="events">
-              {#each dateEvents as event}
-                <div class="event-wrapper">
-                  <!-- Botón de eliminar (background) -->
-                  <div class="delete-background">
-                    <button 
-                      class="delete-button"
-                      on:click={() => showDeleteConfirm(event)}
-                    >
-                      <i class="fa-solid fa-trash"></i>
-                      <span>Eliminar</span>
-                    </button>
-                  </div>
-                  
-                  <!-- Evento principal (foreground) -->
-                  <div 
-                    class="event-item"
-                    class:swiping={swipeData.get(event.id)?.isSwiping}
-                    style="border-left-color: {event.subjects?.color}; transform: translateX({swipeData.get(event.id)?.deltaX || 0}px);"
-                    on:touchstart={(e) => handleTouchStart(e, event)}
-                    on:touchmove={(e) => handleTouchMove(e, event)}
-                    on:touchend={(e) => handleTouchEnd(e, event)}
+          <!-- Encabezado de fecha -->
+          <div class="date-divider">
+            <div class="date-circle">
+              <i class="fa-solid fa-calendar"></i>
+            </div>
+            <div class="date-label">{date}</div>
+          </div>
+          
+          {#each dateEvents as event, index}
+            <div class="timeline-item" class:left={index % 2 === 0} class:right={index % 2 === 1}>
+              <!-- Círculo conector -->
+              <div class="timeline-connector">
+                <div class="connector-circle" style="background-color: {event.subjects?.color}">
+                  <i class="fa-solid {getActionIcon(event.action_name)}"></i>
+                </div>
+              </div>
+              
+              <!-- Tarjeta del evento -->
+              <div class="timeline-card-wrapper">
+                <!-- Botón de eliminar (background) -->
+                <div class="delete-background">
+                  <button 
+                    class="delete-button"
+                    on:click={() => showDeleteConfirm(event)}
                   >
-                    <div class="event-time">
+                    <i class="fa-solid fa-trash"></i>
+                    <span>Eliminar</span>
+                  </button>
+                </div>
+                
+                <!-- Tarjeta principal (foreground) -->
+                <div 
+                  class="timeline-card"
+                  class:swiping={swipeData.get(event.id)?.isSwiping}
+                  style="transform: translateX({swipeData.get(event.id)?.deltaX || 0}px);"
+                  on:touchstart={(e) => handleTouchStart(e, event)}
+                  on:touchmove={(e) => handleTouchMove(e, event)}
+                  on:touchend={(e) => handleTouchEnd(e, event)}
+                >
+                  <!-- Flecha pointing hacia la línea -->
+                  <div class="card-arrow"></div>
+                  
+                  <div class="card-header">
+                    <div class="card-time">
                       {formatEventTime(event.event_timestamp)}
                     </div>
-                    
-                    <div class="event-icon" style="background-color: {event.subjects?.color}">
-                      <i class="fa-solid {getActionIcon(event.action_name)}"></i>
+                  </div>
+                  
+                  <div class="card-content">
+                    <div class="card-subject" style="color: {event.subjects?.color}">
+                      <i class="fa-solid {event.subjects?.icon}"></i>
+                      <span class="subject-name">{event.subjects?.name}</span>
                     </div>
-                    
-                    <div class="event-content">
-                      <div class="event-subject">
-                        <i class="fa-solid {event.subjects?.icon}"></i>
-                        {event.subjects?.name}
-                      </div>
-                      <div class="event-action">{event.action_name}</div>
-                      <div class="event-user">por {getUserName(event)}</div>
-                    </div>
+                    <div class="card-action">{event.action_name}</div>
+                    <div class="card-user">por {getUserName(event)}</div>
                   </div>
                 </div>
-              {/each}
+              </div>
             </div>
-          </div>
+          {/each}
         {/each}
       </div>
     {/if}
@@ -403,41 +419,123 @@
       color: var(--primary);
     }
   
-    /* Lista de eventos */
-    .events-list {
-      display: flex;
-      flex-direction: column;
-      gap: 0;
-    }
-  
-    .date-group {
-      display: flex;
-      flex-direction: column;
-      gap: 0;
-    }
-  
-    .date-header {
-      font-size: 0.875rem;
-      color: var(--gray-dark);
-      text-transform: capitalize;
-      margin: 0;
-      padding: var(--spacing-md);
+    /* Timeline vertical */
+    .vertical-timeline {
+      position: relative;
+      padding: var(--spacing-md) var(--spacing-sm);
       background: var(--white);
-      border-bottom: 1px solid var(--gray);
+      min-height: 500px;
     }
-  
-    .events {
+
+    /* Línea central */
+    .timeline-line {
+      position: absolute;
+      left: 50%;
+      top: 0;
+      bottom: 0;
+      width: 3px;
+      background: var(--gray);
+      transform: translateX(-50%);
+      z-index: 1;
+    }
+
+    /* Divisor de fecha */
+    .date-divider {
+      position: relative;
       display: flex;
-      flex-direction: column;
-      gap: 0;
+      align-items: center;
+      justify-content: center;
+      margin: var(--spacing-md) 0 var(--spacing-lg) 0;
+      z-index: 3;
     }
-  
-    /* Swipe to delete */
-    .event-wrapper {
+
+    .date-circle {
+      width: 60px;
+      height: 60px;
+      background: var(--primary);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--white);
+      font-size: 1.2rem;
+      box-shadow: var(--shadow-md);
+      position: relative;
+      z-index: 4;
+    }
+
+    .date-label {
+      position: absolute;
+      top: 75px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: var(--primary);
+      color: var(--white);
+      padding: var(--spacing-xs) var(--spacing-sm);
+      border-radius: var(--radius-sm);
+      font-size: 0.8rem;
+      font-weight: 500;
+      white-space: nowrap;
+      text-transform: capitalize;
+    }
+
+    /* Item del timeline */
+    .timeline-item {
+      position: relative;
+      margin-bottom: var(--spacing-sm);
+      z-index: 2;
+      min-height: 70px;
+      display: flex;
+      align-items: flex-start;
+      padding-top: 5px;
+    }
+
+    /* Posicionamiento alternante */
+    .timeline-item.left {
+      justify-content: center;
+      padding-right: calc(50% + 30px);
+    }
+
+    .timeline-item.right {
+      justify-content: center;
+      padding-left: calc(50% + 30px);
+    }
+
+    /* Círculo conector */
+    .timeline-connector {
+      position: absolute;
+      left: 50%;
+      top: 15px;
+      transform: translateX(-50%);
+      z-index: 3;
+    }
+
+    .connector-circle {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--white);
+      border: 3px solid var(--white);
+      box-shadow: var(--shadow-md);
+    }
+
+    .connector-circle i {
+      font-size: 1rem;
+    }
+
+    /* Wrapper de tarjeta para swipe */
+    .timeline-card-wrapper {
       position: relative;
       overflow: hidden;
+      border-radius: var(--radius-md);
+      width: 100%;
+      max-width: 350px;
     }
-    
+
+    /* Botón de eliminar */
     .delete-background {
       position: absolute;
       top: 0;
@@ -449,6 +547,7 @@
       align-items: center;
       justify-content: center;
       z-index: 1;
+      border-radius: 0 var(--radius-md) var(--radius-md) 0;
     }
     
     .delete-button {
@@ -461,124 +560,115 @@
       align-items: center;
       gap: 2px;
       padding: var(--spacing-xs);
-      font-size: 0.75rem;
+      font-size: 0.7rem;
       height: 100%;
       width: 100%;
     }
     
     .delete-button i {
-      font-size: 1.2rem;
+      font-size: 1.1rem;
     }
     
     .delete-button:active {
       background: rgba(255, 255, 255, 0.1);
     }
 
-    /* Evento individual */
-    .event-item {
-      display: grid;
-      grid-template-columns: auto auto 1fr;
-      gap: var(--spacing-md);
-      padding: var(--spacing-md);
+    /* Tarjeta del evento */
+    .timeline-card {
       background: var(--white);
-      border-left: 3px solid;
-      align-items: center;
-      transition: transform 0.3s ease, background-color 0.2s ease;
+      border-radius: var(--radius-md);
+      padding: var(--spacing-md);
+      box-shadow: var(--shadow-md);
       position: relative;
       z-index: 2;
-      touch-action: pan-y; /* Permitir scroll vertical */
-    }
-    
-    .event-item.swiping {
-      transition: none; /* Deshabilitar transición durante el swipe */
-    }
-  
-    .event-item:hover {
-      background: var(--gray-light);
-    }
-  
-    .event-time {
-      font-size: 0.875rem;
-      color: var(--gray-dark);
-      font-weight: 500;
-    }
-  
-    .event-icon {
-      width: 40px;
-      height: 40px;
-      border-radius: var(--radius-full);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: var(--white);
-    }
-  
-    .event-icon i {
-      font-size: 1.125rem;
-    }
-  
-    .event-content {
-      display: flex;
-      flex-direction: column;
-      gap: 2px;
-    }
-  
-    .event-subject {
-      display: flex;
-      align-items: center;
-      gap: var(--spacing-xs);
-      font-weight: 500;
-      color: var(--black);
-    }
-  
-    .event-subject i {
-      font-size: 0.875rem;
-      color: var(--gray-dark);
-    }
-  
-    .event-action {
-      color: var(--black);
-      font-size: 0.9rem;
-    }
-  
-    .event-user {
-      font-size: 0.75rem;
-      color: var(--gray-dark);
-    }
-  
-    /* Agrupar eventos por sujeto */
-    .subject-group {
-      display: flex;
-      flex-direction: column;
-      gap: 0;
+      transition: transform 0.3s ease, box-shadow 0.2s ease;
+      touch-action: pan-y;
     }
 
-    .subject-header {
-      padding: var(--spacing-md);
-      color: var(--white);
+    .timeline-card.swiping {
+      transition: none;
+    }
+
+    .timeline-card:hover {
+      box-shadow: var(--shadow-lg);
+    }
+
+    /* Flecha pointing hacia la línea */
+    .card-arrow {
+      position: absolute;
+      top: 15px;
+      width: 0;
+      height: 0;
+      border: 8px solid transparent;
+    }
+
+    .timeline-item.left .card-arrow {
+      right: -16px;
+      border-left-color: var(--white);
+    }
+
+    .timeline-item.right .card-arrow {
+      left: -16px;
+      border-right-color: var(--white);
+    }
+
+    /* Contenido de la tarjeta */
+    .card-header {
+      margin-bottom: var(--spacing-sm);
+      text-align: right;
+    }
+
+    .timeline-item.right .card-header {
+      text-align: left;
+    }
+
+    .card-time {
+      font-size: 0.8rem;
+      color: var(--gray-dark);
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .card-content {
       display: flex;
-      align-items: center;
+      flex-direction: column;
       gap: var(--spacing-sm);
     }
 
-    .subject-header i {
-      font-size: 1.25rem;
+    .card-subject {
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-xs);
+      font-size: 1.1rem;
+      font-weight: 700;
+      margin-bottom: var(--spacing-xs);
     }
 
-    .subject-header h3 {
-      margin: 0;
+    .card-subject i {
+      font-size: 1rem;
+    }
+
+    .subject-name {
+      font-weight: 700;
+    }
+
+    .card-action {
       font-size: 1rem;
       font-weight: 500;
+      color: var(--dark);
+      line-height: 1.4;
+      margin-bottom: var(--spacing-xs);
     }
 
-    .subject-events {
-      display: flex;
-      flex-direction: column;
-      gap: 0;
+    .card-user {
+      font-size: 0.75rem;
+      color: var(--gray-dark);
+      font-style: italic;
     }
   
     /* Responsive */
-    @media (max-width: 640px) {
+    @media (max-width: 768px) {
       .filter-tabs {
         flex-wrap: nowrap;
         overflow-x: auto;
@@ -604,14 +694,132 @@
         min-width: 120px;
       }
 
-      .event-item {
-        grid-template-columns: auto 1fr;
-        gap: var(--spacing-sm);
+      /* Timeline mobile: layout simplificado */
+      .vertical-timeline {
+        padding: var(--spacing-sm) var(--spacing-xs);
       }
-      
-      .event-time {
-        grid-column: 1 / -1;
+
+      .timeline-line {
+        left: 30px;
+        transform: none;
+        width: 2px;
+      }
+
+      .timeline-item {
         margin-bottom: var(--spacing-xs);
+        min-height: 60px;
+        width: 100%;
+      }
+
+      .timeline-item.left,
+      .timeline-item.right {
+        display: flex;
+        padding: 0 0 0 65px;
+        justify-content: flex-start;
+        align-items: flex-start;
+        flex-direction: row;
+      }
+
+      .timeline-connector {
+        left: 30px;
+        transform: none;
+        top: 10px;
+      }
+
+      .connector-circle {
+        width: 30px;
+        height: 30px;
+        font-size: 0.8rem;
+      }
+
+      .timeline-card-wrapper {
+        max-width: none;
+        width: 100%;
+        flex: 1;
+      }
+
+      .timeline-card {
+        width: 100%;
+        margin: 0;
+        padding: var(--spacing-sm);
+      }
+
+      .card-arrow {
+        display: none; /* Ocultar flechas en mobile */
+      }
+
+      .date-divider {
+        justify-content: flex-start;
+        padding-left: 10px;
+        margin: var(--spacing-sm) 0;
+      }
+
+      .date-circle {
+        width: 40px;
+        height: 40px;
+        font-size: 0.9rem;
+        margin-left: -5px;
+      }
+
+      .date-label {
+        top: 50px;
+        font-size: 0.7rem;
+        left: 15px;
+        transform: none;
+      }
+
+      .card-header {
+        text-align: left !important;
+      }
+
+      .card-subject {
+        font-size: 1rem;
+      }
+
+      .card-action {
+        font-size: 0.95rem;
+      }
+
+      .card-content {
+        gap: var(--spacing-xs);
+      }
+    }
+
+    /* Ajustes adicionales para pantallas muy pequeñas */
+    @media (max-width: 480px) {
+      .timeline-line {
+        left: 25px;
+      }
+
+      .timeline-connector {
+        left: 25px;
+      }
+
+      .timeline-item.left,
+      .timeline-item.right {
+        padding: 0 0 0 55px;
+      }
+
+      .date-circle {
+        width: 35px;
+        height: 35px;
+        font-size: 0.8rem;
+        margin-left: -10px;
+      }
+
+      .date-label {
+        left: 10px;
+        font-size: 0.65rem;
+      }
+
+      .connector-circle {
+        width: 25px;
+        height: 25px;
+        font-size: 0.7rem;
+      }
+
+      .timeline-card {
+        padding: var(--spacing-xs);
       }
     }
     
