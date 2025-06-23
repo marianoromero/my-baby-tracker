@@ -20,6 +20,11 @@
     let actionToDelete = null
     let deleting = false
     
+    // Variables para edición
+    let editModalVisible = false
+    let actionToEdit = null
+    let editActionName = ''
+    
     // Cargar datos del sujeto y sus acciones
     $: {
         const subjectId = $page.params.id
@@ -177,10 +182,10 @@
         
         if (!data) return
         
-        // Si se deslizó más de 80px, revelar el botón de eliminar
-        if (data.deltaX < -80) {
+        // Si se deslizó más de 120px, revelar los botones de acción
+        if (data.deltaX < -120) {
             data.revealed = true
-            data.deltaX = -80
+            data.deltaX = -120
         } else {
             data.revealed = false
             data.deltaX = 0
@@ -191,6 +196,21 @@
         swipeData = swipeData // Trigger reactivity
     }
     
+    function showEditModal(actionData) {
+        actionToEdit = actionData
+        editActionName = actionData.name
+        editModalVisible = true
+        
+        // Cerrar el swipe de la acción
+        const data = swipeData.get(actionData.id)
+        if (data) {
+            data.revealed = false
+            data.deltaX = 0
+            swipeData.set(actionData.id, data)
+            swipeData = swipeData
+        }
+    }
+
     function showDeleteConfirm(actionData) {
         // Crear un objeto compatible con el modal de eventos
         actionToDelete = {
@@ -235,6 +255,43 @@
     function cancelDelete() {
         actionToDelete = null
     }
+
+    async function updateAction() {
+        if (!editActionName.trim() || !actionToEdit) return
+
+        try {
+            const { error } = await supabase
+                .from('actions')
+                .update({ name: editActionName.trim() })
+                .eq('id', actionToEdit.id)
+
+            if (error) throw error
+
+            // Actualizar el store local
+            const updatedActions = { ...$actions }
+            if (updatedActions[subject.id]) {
+                const actionIndex = updatedActions[subject.id].findIndex(a => a.id === actionToEdit.id)
+                if (actionIndex !== -1) {
+                    updatedActions[subject.id][actionIndex].name = editActionName.trim()
+                }
+            }
+            actions.set(updatedActions)
+
+            showNotification('✅ Acción actualizada')
+            editModalVisible = false
+            actionToEdit = null
+            editActionName = ''
+        } catch (error) {
+            console.error('Error al actualizar acción:', error)
+            showNotification('❌ Error al actualizar la acción')
+        }
+    }
+
+    function cancelEdit() {
+        editModalVisible = false
+        actionToEdit = null
+        editActionName = ''
+    }
 </script>
 
 <div class="container">
@@ -249,10 +306,17 @@
         <div class="actions-list">
             {#each subjectActions as action}
                 <div class="action-wrapper">
-                    <!-- Botón de eliminar (background) -->
-                    <div class="delete-background">
+                    <!-- Botones de acción (background) -->
+                    <div class="actions-background">
                         <button 
-                            class="delete-button"
+                            class="action-background-btn edit-button"
+                            on:click={() => showEditModal(action)}
+                        >
+                            <i class="fa-solid fa-edit"></i>
+                            <span>Editar</span>
+                        </button>
+                        <button 
+                            class="action-background-btn delete-button"
                             on:click={() => showDeleteConfirm(action)}
                         >
                             <i class="fa-solid fa-trash"></i>
@@ -315,6 +379,38 @@
     </main>
 </div>
 
+<!-- Modal de edición -->
+{#if editModalVisible}
+    <div class="modal-overlay" on:click={cancelEdit}>
+        <div class="modal-content" on:click|stopPropagation>
+            <div class="modal-header">
+                <h2>Editar Acción</h2>
+            </div>
+            <div class="modal-body">
+                <input
+                    type="text"
+                    bind:value={editActionName}
+                    placeholder="Nombre de la acción"
+                    class="edit-input"
+                />
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" on:click={cancelEdit}>
+                    Cancelar
+                </button>
+                <button 
+                    class="btn btn-primary" 
+                    style="background-color: {subject?.color}"
+                    on:click={updateAction}
+                    disabled={!editActionName.trim()}
+                >
+                    Guardar
+                </button>
+            </div>
+        </div>
+    </div>
+{/if}
+
 <!-- Modal de confirmación de eliminación -->
 <DeleteConfirmModal 
     bind:show={showDeleteModal}
@@ -372,21 +468,18 @@
         overflow: hidden;
     }
     
-    .delete-background {
+    .actions-background {
         position: absolute;
         top: 0;
         right: 0;
         bottom: 0;
-        width: 80px;
-        background: #ff6b6b;
+        width: 120px;
         display: flex;
-        align-items: center;
-        justify-content: center;
         z-index: 1;
-        transform: translateX(80px); /* Hide by default */
+        transform: translateX(120px); /* Hide by default */
     }
     
-    .delete-button {
+    .action-background-btn {
         background: none;
         border: none;
         color: var(--white);
@@ -396,16 +489,25 @@
         align-items: center;
         gap: 2px;
         padding: var(--spacing-xs);
-        font-size: 0.75rem;
+        font-size: 0.7rem;
         height: 100%;
-        width: 100%;
+        width: 60px;
+        flex-shrink: 0;
     }
     
-    .delete-button i {
-        font-size: 1.2rem;
+    .edit-button {
+        background: #4CAF50;
     }
     
-    .delete-button:active {
+    .delete-button {
+        background: #ff6b6b;
+    }
+    
+    .action-background-btn i {
+        font-size: 1.1rem;
+    }
+    
+    .action-background-btn:active {
         background: rgba(255, 255, 255, 0.1);
     }
 
@@ -494,6 +596,84 @@
 
     .btn-secondary:hover {
         background-color: var(--gray-dark);
+    }
+
+    /* Modal de edición */
+    .modal-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.5);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 1000;
+        padding: var(--spacing-md);
+    }
+
+    .modal-content {
+        background: var(--white);
+        border-radius: var(--radius-md);
+        max-width: 400px;
+        width: 100%;
+        box-shadow: var(--shadow-lg);
+    }
+
+    .modal-header {
+        padding: var(--spacing-lg);
+        border-bottom: 1px solid var(--light);
+    }
+
+    .modal-header h2 {
+        margin: 0;
+        font-size: 1.25rem;
+        color: var(--dark);
+    }
+
+    .modal-body {
+        padding: var(--spacing-lg);
+    }
+
+    .edit-input {
+        width: 100%;
+        padding: var(--spacing-md);
+        border: 1px solid var(--gray);
+        border-radius: var(--radius-sm);
+        font-size: 1rem;
+        box-sizing: border-box;
+    }
+
+    .edit-input:focus {
+        outline: none;
+        border-color: var(--primary);
+    }
+
+    .modal-footer {
+        padding: var(--spacing-lg);
+        border-top: 1px solid var(--light);
+        display: flex;
+        gap: var(--spacing-sm);
+        justify-content: flex-end;
+    }
+
+    .modal-footer .btn {
+        padding: var(--spacing-sm) var(--spacing-lg);
+        border: none;
+        border-radius: var(--radius-sm);
+        cursor: pointer;
+        font-size: 1rem;
+    }
+
+    .btn-primary {
+        background-color: var(--primary);
+        color: var(--white);
+    }
+
+    .btn-primary:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
     }
 
     /* Notificaciones */
