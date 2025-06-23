@@ -6,15 +6,18 @@ import { browser } from '$app/environment'
 // Store para el usuario actual
 export const user = writable(null)
 
-// Store para el estado de carga
-export const loading = writable(true)
+// Store para el estado de carga inicial de la app
+export const initializing = writable(true)
+
+// Store para el estado de carga de operaciones
+export const loading = writable(false)
 
 // Solo ejecutar en el cliente
 if (browser) {
   // Inicializar el store con la sesión actual
   supabase.auth.getSession().then(({ data: { session } }) => {
     user.set(session?.user ?? null)
-    loading.set(false)
+    initializing.set(false)
   })
 
   // Escuchar cambios en la autenticación

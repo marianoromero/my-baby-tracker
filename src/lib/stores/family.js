@@ -14,7 +14,13 @@ export const subjects = writable([])
 export const actions = writable({})
 
 // Función para crear o obtener la familia del usuario
-export async function initializeFamily() {
+export async function initializeFamily(force = false) {
+  // Si ya está inicializado y no es forzado, no hacer nada
+  if (hasInitialized && !force) {
+    console.log('Datos ya cargados, saltando inicialización')
+    return
+  }
+  
   familyLoading.set(true)
   
   try {
@@ -272,6 +278,7 @@ export async function joinFamilyWithCode(invitationCode) {
 }
 
 let currentUserId = null
+let hasInitialized = false
 
 // Suscribirse a cambios de la familia cuando el usuario cambie
 user.subscribe(async ($user) => {
@@ -280,10 +287,12 @@ user.subscribe(async ($user) => {
   // Solo procesar si el usuario realmente cambió
   if (newUserId !== currentUserId) {
     currentUserId = newUserId
+    hasInitialized = false
     
     if ($user) {
       console.log('Usuario cambió, inicializando familia para:', $user.id)
       const result = await initializeFamily()
+      hasInitialized = true
       
       // Si el usuario necesita onboarding, esto se manejará en el layout
       if (result?.needsOnboarding) {
@@ -295,6 +304,12 @@ user.subscribe(async ($user) => {
       subjects.set([])
       actions.set({})
       familyLoading.set(false)
+      hasInitialized = false
     }
   }
 })
+
+// Función para verificar si ya están cargados los datos
+export function isDataLoaded() {
+  return hasInitialized
+}

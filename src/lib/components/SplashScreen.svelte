@@ -40,7 +40,7 @@
                 // Completado - esperar un momento antes de ocultar
                 setTimeout(() => {
                   show = false
-                }, 500)
+                }, 300)
               }
             }, step.duration)
           }

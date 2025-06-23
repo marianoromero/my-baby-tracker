@@ -5,13 +5,10 @@
     import { supabase } from '$lib/supabase'
     import { goto } from '$app/navigation'
     import { base } from '$app/paths'
-    import SplashScreen from '$lib/components/SplashScreen.svelte'
     
     let selectedSubject = null
     let registering = false
     let menuOpen = false
-    let recentActions = {}
-    let showSplash = true
     
     // Registrar un evento
     async function registerEvent(subjectId, actionName) {
@@ -90,70 +87,7 @@
       goto(`${base}/subject/${subjectId}`)
     }
 
-    // Obtener las 3 acciones más recientes de un sujeto
-    async function getRecentActions(subjectId) {
-      if (!$actions[subjectId]) return []
-      
-      try {
-        // Obtener los eventos más recientes para este sujeto
-        const { data: recentEvents, error } = await supabase
-          .from('events')
-          .select('action_name')
-          .eq('subject_id', subjectId)
-          .order('event_timestamp', { ascending: false })
-          .limit(3)
 
-        if (error) throw error
-
-        // Crear un Set con las acciones más recientes
-        const recentActionNames = new Set(recentEvents.map(e => e.action_name))
-
-        // Obtener todas las acciones del sujeto
-        const allActions = $actions[subjectId]
-
-        // Ordenar las acciones: primero las recientes, luego el resto alfabéticamente
-        const sortedActions = allActions.sort((a, b) => {
-          const aIsRecent = recentActionNames.has(a.name)
-          const bIsRecent = recentActionNames.has(b.name)
-          
-          if (aIsRecent && !bIsRecent) return -1
-          if (!aIsRecent && bIsRecent) return 1
-          return a.name.localeCompare(b.name)
-        })
-
-        // Tomar las 3 primeras
-        return sortedActions.slice(0, 3)
-      } catch (err) {
-        console.error('Error al obtener acciones recientes:', err)
-        return $actions[subjectId].slice(0, 3)
-      }
-    }
-
-    // Cargar acciones recientes para cada sujeto
-    async function loadRecentActions() {
-      for (const subject of $subjects) {
-        recentActions[subject.id] = await getRecentActions(subject.id)
-      }
-      recentActions = recentActions // Trigger reactivity
-    }
-
-    // Cargar acciones recientes cuando cambien los sujetos o acciones
-    $: if ($subjects && $actions) {
-      loadRecentActions()
-    }
-
-    // Ocultar splash screen cuando los datos estén listos
-    $: if (!$familyLoading && $family && $subjects && $actions) {
-      // Verificar si ya tenemos acciones recientes o si no hay sujetos
-      const hasData = $subjects.length === 0 || Object.keys(recentActions).length > 0
-      
-      if (hasData && showSplash) {
-        // Dar un pequeño delay para asegurar que la UI esté lista
-        setTimeout(() => {
-          showSplash = false
-        }, 800)
-      }
-    }
 
     // Reactively handle user state changes
     $: if ($user === null) {
@@ -161,8 +95,12 @@
     }
 </script>
 
-{#if $familyLoading || showSplash}
-  <SplashScreen bind:show={showSplash} />
+{#if $familyLoading}
+  <!-- Loading mientras se obtienen los datos de la familia -->
+  <div class="loading-container">
+    <div class="loading-spinner"></div>
+    <p>Cargando datos...</p>
+  </div>
 {:else}
   <div class="container">
     <header>
@@ -185,8 +123,8 @@
             </div>
             
             <div class="actions-list">
-              {#if $actions[subject.id] && recentActions[subject.id]}
-                {#each recentActions[subject.id] as action}
+              {#if $actions[subject.id] && $actions[subject.id].length > 0}
+                {#each $actions[subject.id].slice(0, 3) as action}
                   <button 
                     class="action-btn"
                     on:click={() => registerEvent(subject.id, action.name)}
@@ -196,7 +134,6 @@
                   </button>
                 {/each}
               {:else}
-                <!-- Placeholders durante la carga para evitar layout jumping -->
                 <div class="action-placeholder"></div>
                 <div class="action-placeholder"></div>
                 <div class="action-placeholder"></div>
@@ -263,6 +200,30 @@
 {/if}
 
 <style>
+  .loading-container {
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: var(--background);
+    gap: var(--spacing-md);
+  }
+
+  .loading-spinner {
+    width: 50px;
+    height: 50px;
+    border: 4px solid var(--light);
+    border-top: 4px solid var(--primary);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+  }
+
+  @keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+  }
+
   .container {
     height: 100vh;
     background-color: var(--gray-light);
@@ -396,6 +357,7 @@
     background: rgba(255, 255, 255, 0.1);
     border-radius: var(--radius-sm);
     flex: 1;
+    height: 40px;
     animation: pulse 1.5s ease-in-out infinite;
   }
 
