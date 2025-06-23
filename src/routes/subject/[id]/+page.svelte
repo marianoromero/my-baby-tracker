@@ -307,7 +307,7 @@
     <main>
         <div class="actions-list">
             {#each subjectActions as action}
-                <div class="action-wrapper">
+                <div class="action-wrapper" class:swiped={swipeData.get(action.id)?.revealed}>
                     <!-- Botones de acción (background) -->
                     <div class="actions-background">
                         <button 
@@ -482,42 +482,85 @@
     
     .action-background-btn {
         border: none;
-        color: var(--white);
         cursor: pointer;
         display: flex;
         flex-direction: column;
         align-items: center;
         justify-content: center;
-        gap: 2px;
-        padding: var(--spacing-xs);
+        gap: 4px;
+        padding: var(--spacing-sm);
         font-size: 0.7rem;
         height: 100%;
         width: 60px;
         flex-shrink: 0;
-    }
-    
-    .edit-button {
-        background: #4CAF50 !important;
-    }
-    
-    .delete-button {
-        background: #ff6b6b !important;
+        background: transparent;
+        color: rgba(255, 255, 255, 0.4);
+        transition: all 0.2s ease;
     }
     
     .action-background-btn i {
-        font-size: 1.1rem;
+        font-size: 1.2rem;
+        transition: all 0.2s ease;
     }
     
-    .action-background-btn:active {
+    .action-background-btn span {
+        font-size: 0.65rem;
         opacity: 0.8;
     }
 
-    .edit-button:active {
-        background: #45a049 !important;
+    /* Desktop: Botones sutiles y visibles */
+    @media (min-width: 769px) {
+        .action-background-btn:hover {
+            color: rgba(255, 255, 255, 0.7);
+            transform: scale(1.1);
+        }
+        
+        .edit-button:hover {
+            color: #4CAF50;
+        }
+        
+        .delete-button:hover {
+            color: #ff6b6b;
+        }
+        
+        .action-background-btn:active {
+            transform: scale(0.95);
+        }
     }
 
-    .delete-button:active {
-        background: #e55555 !important;
+    /* Mobile: Botones ocultos, solo iconos al deslizar */
+    @media (max-width: 768px) {
+        .actions-background {
+            background: transparent;
+        }
+        
+        .action-background-btn {
+            background: transparent;
+            color: transparent;
+        }
+        
+        .action-background-btn i {
+            font-size: 1.5rem;
+            color: transparent;
+            transition: color 0.3s ease;
+        }
+        
+        .action-background-btn span {
+            display: none;
+        }
+        
+        /* Mostrar iconos cuando el botón principal está deslizado */
+        .action-wrapper.swiped .edit-button i {
+            color: #4CAF50;
+        }
+        
+        .action-wrapper.swiped .delete-button i {
+            color: #ff6b6b;
+        }
+        
+        .action-background-btn:active {
+            opacity: 0.6;
+        }
     }
 
     .action-btn {
