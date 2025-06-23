@@ -197,6 +197,7 @@
     }
     
     function showEditModal(actionData) {
+        console.log('Edit button clicked for action:', actionData.name)
         actionToEdit = actionData
         editActionName = actionData.name
         editModalVisible = true
@@ -212,6 +213,7 @@
     }
 
     function showDeleteConfirm(actionData) {
+        console.log('Delete button clicked for action:', actionData.name)
         // Crear un objeto compatible con el modal de eventos
         actionToDelete = {
             id: actionData.id,
@@ -312,7 +314,7 @@
                             class="action-background-btn edit-button"
                             on:click={() => showEditModal(action)}
                         >
-                            <i class="fa-solid fa-edit"></i>
+                            <i class="fa-solid fa-pen"></i>
                             <span>Editar</span>
                         </button>
                         <button 
@@ -476,17 +478,16 @@
         width: 120px;
         display: flex;
         z-index: 1;
-        transform: translateX(120px); /* Hide by default */
     }
     
     .action-background-btn {
-        background: none;
         border: none;
         color: var(--white);
         cursor: pointer;
         display: flex;
         flex-direction: column;
         align-items: center;
+        justify-content: center;
         gap: 2px;
         padding: var(--spacing-xs);
         font-size: 0.7rem;
@@ -496,11 +497,11 @@
     }
     
     .edit-button {
-        background: #4CAF50;
+        background: #4CAF50 !important;
     }
     
     .delete-button {
-        background: #ff6b6b;
+        background: #ff6b6b !important;
     }
     
     .action-background-btn i {
@@ -508,7 +509,15 @@
     }
     
     .action-background-btn:active {
-        background: rgba(255, 255, 255, 0.1);
+        opacity: 0.8;
+    }
+
+    .edit-button:active {
+        background: #45a049 !important;
+    }
+
+    .delete-button:active {
+        background: #e55555 !important;
     }
 
     .action-btn {
@@ -523,6 +532,7 @@
         z-index: 2;
         width: 100%;
         touch-action: pan-y; /* Permitir scroll vertical */
+        background: var(--white); /* Asegurar que tenga fondo */
     }
     
     .action-btn.swiping {
