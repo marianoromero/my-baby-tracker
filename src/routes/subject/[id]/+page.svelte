@@ -6,7 +6,6 @@
     import { subjects, actions } from '$lib/stores/family'
     import { supabase } from '$lib/supabase'
     import { user } from '$lib/stores/auth'
-    import DeleteConfirmModal from '$lib/components/DeleteConfirmModal.svelte'
     
     let subject = null
     let subjectActions = []
@@ -214,13 +213,7 @@
 
     function showDeleteConfirm(actionData) {
         console.log('Delete button clicked for action:', actionData.name)
-        // Crear un objeto compatible con el modal de eventos
-        actionToDelete = {
-            id: actionData.id,
-            action_name: actionData.name,
-            subjects: subject,
-            event_timestamp: new Date().toISOString() // Timestamp ficticio para el modal
-        }
+        actionToDelete = actionData
         showDeleteModal = true
         
         // Cerrar el swipe de la acción
@@ -233,15 +226,15 @@
         }
     }
     
-    async function confirmDelete(event) {
-        if (!event.detail) return
+    async function confirmDelete() {
+        if (!actionToDelete) return
         
         deleting = true
-        const result = await deleteAction(event.detail.id)
+        const result = await deleteAction(actionToDelete.id)
         
         if (result.success) {
             // Limpiar datos del swipe
-            swipeData.delete(event.detail.id)
+            swipeData.delete(actionToDelete.id)
             swipeData = swipeData
             
             // Mostrar notificación de éxito
@@ -251,10 +244,12 @@
         }
         
         deleting = false
+        showDeleteModal = false
         actionToDelete = null
     }
     
     function cancelDelete() {
+        showDeleteModal = false
         actionToDelete = null
     }
 
@@ -413,13 +408,43 @@
     </div>
 {/if}
 
-<!-- Modal de confirmación de eliminación -->
-<DeleteConfirmModal 
-    bind:show={showDeleteModal}
-    eventData={actionToDelete}
-    on:confirm={confirmDelete}
-    on:cancel={cancelDelete}
-/>
+<!-- Modal de confirmación de eliminación de acción -->
+{#if showDeleteModal && actionToDelete}
+    <div class="modal-overlay" on:click={cancelDelete}>
+        <div class="modal-content" on:click|stopPropagation>
+            <div class="modal-header">
+                <i class="fa-solid fa-exclamation-triangle warning-icon"></i>
+                <h2>Eliminar Acción</h2>
+            </div>
+            <div class="modal-body">
+                <p>¿Estás seguro de que quieres eliminar la acción <strong>"{actionToDelete.name}"</strong>?</p>
+                <p class="warning-text">Esta acción se eliminará permanentemente de la lista de {subject?.name} y no se podrá deshacer.</p>
+            </div>
+            <div class="modal-footer">
+                <button 
+                    class="btn btn-secondary" 
+                    on:click={cancelDelete}
+                    disabled={deleting}
+                >
+                    Cancelar
+                </button>
+                <button 
+                    class="btn btn-danger" 
+                    on:click={confirmDelete}
+                    disabled={deleting}
+                >
+                    {#if deleting}
+                        <i class="fa-solid fa-spinner fa-spin"></i>
+                        Eliminando...
+                    {:else}
+                        <i class="fa-solid fa-trash"></i>
+                        Eliminar Acción
+                    {/if}
+                </button>
+            </div>
+        </div>
+    </div>
+{/if}
 
 <style>
     .container {
@@ -727,6 +752,41 @@
     .btn-primary:disabled {
         opacity: 0.5;
         cursor: not-allowed;
+    }
+
+    .btn-danger {
+        background-color: #ff6b6b;
+        color: var(--white);
+    }
+
+    .btn-danger:hover:not(:disabled) {
+        background-color: #e55555;
+    }
+
+    .btn-danger:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+
+    .warning-icon {
+        font-size: 1.5rem;
+        color: #ff6b6b;
+        margin-bottom: var(--spacing-sm);
+    }
+
+    .warning-text {
+        color: var(--gray-dark);
+        font-size: 0.9rem;
+        margin-top: var(--spacing-sm);
+        margin-bottom: 0;
+    }
+
+    .modal-header {
+        text-align: center;
+    }
+
+    .modal-header h2 {
+        color: var(--dark);
     }
 
     /* Notificaciones */
