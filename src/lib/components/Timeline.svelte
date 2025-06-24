@@ -135,10 +135,10 @@
       
       if (!data) return
       
-      // Si se deslizó más de 80px, revelar el botón de eliminar
-      if (data.deltaX < -80) {
+      // Si se deslizó más de 60px, revelar los botones de acción
+      if (data.deltaX < -60) {
         data.revealed = true
-        data.deltaX = -80
+        data.deltaX = -120 // Mostrar ambos botones completamente
       } else {
         data.revealed = false
         data.deltaX = 0
@@ -730,18 +730,22 @@
     /* Mobile: Botones ocultos, solo iconos al deslizar */
     @media (max-width: 768px) {
       .actions-background {
-        background: transparent;
+        background: linear-gradient(to right, #4CAF50, #ff6b6b);
+        border-radius: 0 var(--radius-md) var(--radius-md) 0;
       }
       
       .action-background-btn {
         background: transparent;
         color: transparent;
+        position: relative;
+        z-index: 2;
       }
       
       .action-background-btn i {
-        font-size: 1.5rem;
+        font-size: 1.8rem;
         color: transparent;
-        transition: color 0.3s ease;
+        transition: all 0.2s ease;
+        text-shadow: 0 0 3px rgba(0, 0, 0, 0.3);
       }
       
       .action-background-btn span {
@@ -749,16 +753,29 @@
       }
       
       /* Mostrar iconos cuando el botón principal está deslizado */
+      .timeline-card-wrapper.swiped .edit-button {
+        background: rgba(76, 175, 80, 0.1);
+      }
+      
       .timeline-card-wrapper.swiped .edit-button i {
-        color: #4CAF50 !important;
+        color: #ffffff !important;
+        transform: scale(1.1);
+        text-shadow: 0 0 4px rgba(0, 0, 0, 0.5);
+      }
+      
+      .timeline-card-wrapper.swiped .delete-button {
+        background: rgba(255, 107, 107, 0.1);
       }
       
       .timeline-card-wrapper.swiped .delete-button i {
-        color: #ff6b6b !important;
+        color: #ffffff !important;
+        transform: scale(1.1);
+        text-shadow: 0 0 4px rgba(0, 0, 0, 0.5);
       }
       
       .action-background-btn:active {
-        opacity: 0.6;
+        opacity: 0.8;
+        transform: scale(0.95);
       }
     }
 
