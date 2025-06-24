@@ -730,7 +730,7 @@
     /* Mobile: Botones ocultos, solo iconos al deslizar */
     @media (max-width: 768px) {
       .actions-background {
-        background: linear-gradient(to right, #4CAF50, #ff6b6b);
+        background: var(--white);
         border-radius: 0 var(--radius-md) var(--radius-md) 0;
       }
       
@@ -745,7 +745,6 @@
         font-size: 1.8rem;
         color: transparent;
         transition: all 0.2s ease;
-        text-shadow: 0 0 3px rgba(0, 0, 0, 0.3);
       }
       
       .action-background-btn span {
@@ -754,27 +753,25 @@
       
       /* Mostrar iconos cuando el botón principal está deslizado */
       .timeline-card-wrapper.swiped .edit-button {
-        background: rgba(76, 175, 80, 0.1);
+        background: transparent;
       }
       
       .timeline-card-wrapper.swiped .edit-button i {
-        color: #ffffff !important;
-        transform: scale(1.1);
-        text-shadow: 0 0 4px rgba(0, 0, 0, 0.5);
+        color: #4CAF50 !important;
+        transform: scale(1.2);
       }
       
       .timeline-card-wrapper.swiped .delete-button {
-        background: rgba(255, 107, 107, 0.1);
+        background: transparent;
       }
       
       .timeline-card-wrapper.swiped .delete-button i {
-        color: #ffffff !important;
-        transform: scale(1.1);
-        text-shadow: 0 0 4px rgba(0, 0, 0, 0.5);
+        color: #ff6b6b !important;
+        transform: scale(1.2);
       }
       
       .action-background-btn:active {
-        opacity: 0.8;
+        opacity: 0.7;
         transform: scale(0.95);
       }
     }
