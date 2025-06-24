@@ -13,16 +13,24 @@
       deleteEvent
     } from '$lib/stores/events'
     import { family, subjects } from '$lib/stores/family'
+    import { supabase } from '$lib/supabase'
     import DeleteConfirmModal from './DeleteConfirmModal.svelte'
     
     let subscription = null
     let selectedSubjects = new Set()
     
-    // Variables para swipe-to-delete
+    // Variables para swipe-to-delete y edición
     let swipeData = new Map() // Para trackear el estado de cada evento
     let showDeleteModal = false
     let eventToDelete = null
     let deleting = false
+    
+    // Variables para edición de eventos
+    let showEditModal = false
+    let eventToEdit = null
+    let editEventName = ''
+    let editEventDate = ''
+    let editEventTime = ''
     
     const filters = [
       { value: 'today', label: 'Hoy', icon: 'fa-calendar-day' },
@@ -141,6 +149,27 @@
       swipeData = swipeData // Trigger reactivity
     }
     
+    function showEditEventModal(eventData) {
+      eventToEdit = eventData
+      editEventName = eventData.action_name
+      
+      // Parsear la fecha y hora del timestamp
+      const eventDate = new Date(eventData.event_timestamp)
+      editEventDate = eventDate.toISOString().split('T')[0] // YYYY-MM-DD
+      editEventTime = eventDate.toTimeString().split(' ')[0].substring(0, 5) // HH:MM
+      
+      showEditModal = true
+      
+      // Cerrar el swipe del evento
+      const data = swipeData.get(eventData.id)
+      if (data) {
+        data.revealed = false
+        data.deltaX = 0
+        swipeData.set(eventData.id, data)
+        swipeData = swipeData
+      }
+    }
+
     function showDeleteConfirm(eventData) {
       eventToDelete = eventData
       showDeleteModal = true
@@ -178,6 +207,47 @@
     
     function cancelDelete() {
       eventToDelete = null
+    }
+
+    async function updateEvent() {
+      if (!editEventName.trim() || !editEventDate || !editEventTime || !eventToEdit) return
+
+      try {
+        // Combinar fecha y hora en un timestamp ISO
+        const combinedDateTime = new Date(`${editEventDate}T${editEventTime}:00`)
+        const timestamp = combinedDateTime.toISOString()
+
+        const { error } = await supabase
+          .from('events')
+          .update({ 
+            action_name: editEventName.trim(),
+            event_timestamp: timestamp 
+          })
+          .eq('id', eventToEdit.id)
+
+        if (error) throw error
+
+        showNotification('✅ Evento actualizado correctamente')
+        showEditModal = false
+        eventToEdit = null
+        editEventName = ''
+        editEventDate = ''
+        editEventTime = ''
+        
+        // Recargar eventos para mostrar cambios
+        loadEvents($selectedFilter)
+      } catch (error) {
+        console.error('Error al actualizar evento:', error)
+        showNotification('❌ Error al actualizar el evento')
+      }
+    }
+
+    function cancelEdit() {
+      showEditModal = false
+      eventToEdit = null
+      editEventName = ''
+      editEventDate = ''
+      editEventTime = ''
     }
     
     function showNotification(message) {
@@ -275,11 +345,18 @@
               </div>
               
               <!-- Tarjeta del evento -->
-              <div class="timeline-card-wrapper">
-                <!-- Botón de eliminar (background) -->
-                <div class="delete-background">
+              <div class="timeline-card-wrapper" class:swiped={swipeData.get(event.id)?.revealed}>
+                <!-- Botones de acción (background) -->
+                <div class="actions-background">
                   <button 
-                    class="delete-button"
+                    class="action-background-btn edit-button"
+                    on:click={() => showEditEventModal(event)}
+                  >
+                    <i class="fa-solid fa-pen"></i>
+                    <span>Editar</span>
+                  </button>
+                  <button 
+                    class="action-background-btn delete-button"
                     on:click={() => showDeleteConfirm(event)}
                   >
                     <i class="fa-solid fa-trash"></i>
@@ -291,6 +368,7 @@
                 <div 
                   class="timeline-card"
                   class:swiping={swipeData.get(event.id)?.isSwiping}
+                  class:swiped={swipeData.get(event.id)?.revealed}
                   style="transform: translateX({swipeData.get(event.id)?.deltaX || 0}px);"
                   on:touchstart={(e) => handleTouchStart(e, event)}
                   on:touchmove={(e) => handleTouchMove(e, event)}
@@ -322,6 +400,61 @@
     {/if}
   </div>
   
+  <!-- Modal de edición de evento -->
+  {#if showEditModal && eventToEdit}
+    <div class="modal-overlay" on:click={cancelEdit}>
+      <div class="modal-content" on:click|stopPropagation>
+        <div class="modal-header">
+          <h2>Editar Evento</h2>
+        </div>
+        <div class="modal-body">
+          <div class="form-group">
+            <label for="edit-event-name">Nombre del evento:</label>
+            <input
+              id="edit-event-name"
+              type="text"
+              bind:value={editEventName}
+              placeholder="Nombre del evento"
+              class="edit-input"
+            />
+          </div>
+          
+          <div class="form-group">
+            <label for="edit-event-date">Fecha:</label>
+            <input
+              id="edit-event-date"
+              type="date"
+              bind:value={editEventDate}
+              class="edit-input"
+            />
+          </div>
+          
+          <div class="form-group">
+            <label for="edit-event-time">Hora:</label>
+            <input
+              id="edit-event-time"
+              type="time"
+              bind:value={editEventTime}
+              class="edit-input"
+            />
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-secondary" on:click={cancelEdit}>
+            Cancelar
+          </button>
+          <button 
+            class="btn btn-primary" 
+            on:click={updateEvent}
+            disabled={!editEventName.trim() || !editEventDate || !editEventTime}
+          >
+            Guardar
+          </button>
+        </div>
+      </div>
+    </div>
+  {/if}
+
   <!-- Modal de confirmación de eliminación -->
   <DeleteConfirmModal 
     bind:show={showDeleteModal}
@@ -535,42 +668,98 @@
       max-width: 350px;
     }
 
-    /* Botón de eliminar */
-    .delete-background {
+    /* Botones de acción en timeline */
+    .actions-background {
       position: absolute;
       top: 0;
       right: 0;
       bottom: 0;
-      width: 80px;
-      background: #ff6b6b;
+      width: 120px;
       display: flex;
-      align-items: center;
-      justify-content: center;
       z-index: 1;
-      border-radius: 0 var(--radius-md) var(--radius-md) 0;
     }
     
-    .delete-button {
-      background: none;
+    .action-background-btn {
       border: none;
-      color: var(--white);
       cursor: pointer;
       display: flex;
       flex-direction: column;
       align-items: center;
-      gap: 2px;
-      padding: var(--spacing-xs);
+      justify-content: center;
+      gap: 4px;
+      padding: var(--spacing-sm);
       font-size: 0.7rem;
       height: 100%;
-      width: 100%;
+      width: 60px;
+      flex-shrink: 0;
+      background: transparent;
+      color: rgba(255, 255, 255, 0.4);
+      transition: all 0.2s ease;
     }
     
-    .delete-button i {
-      font-size: 1.1rem;
+    .action-background-btn i {
+      font-size: 1.2rem;
+      transition: all 0.2s ease;
     }
     
-    .delete-button:active {
-      background: rgba(255, 255, 255, 0.1);
+    .action-background-btn span {
+      font-size: 0.65rem;
+      opacity: 0.8;
+    }
+
+    /* Desktop: Botones sutiles y visibles */
+    @media (min-width: 769px) {
+      .action-background-btn:hover {
+        color: rgba(255, 255, 255, 0.7);
+        transform: scale(1.1);
+      }
+      
+      .edit-button:hover {
+        color: #4CAF50;
+      }
+      
+      .delete-button:hover {
+        color: #ff6b6b;
+      }
+      
+      .action-background-btn:active {
+        transform: scale(0.95);
+      }
+    }
+
+    /* Mobile: Botones ocultos, solo iconos al deslizar */
+    @media (max-width: 768px) {
+      .actions-background {
+        background: transparent;
+      }
+      
+      .action-background-btn {
+        background: transparent;
+        color: transparent;
+      }
+      
+      .action-background-btn i {
+        font-size: 1.5rem;
+        color: transparent;
+        transition: color 0.3s ease;
+      }
+      
+      .action-background-btn span {
+        display: none;
+      }
+      
+      /* Mostrar iconos cuando el botón principal está deslizado */
+      .timeline-card-wrapper.swiped .edit-button i {
+        color: #4CAF50 !important;
+      }
+      
+      .timeline-card-wrapper.swiped .delete-button i {
+        color: #ff6b6b !important;
+      }
+      
+      .action-background-btn:active {
+        opacity: 0.6;
+      }
     }
 
     /* Tarjeta del evento */
@@ -783,6 +972,105 @@
       .card-content {
         gap: var(--spacing-xs);
       }
+    }
+
+    /* Estilos para el modal de edición */
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.5);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      padding: var(--spacing-md);
+    }
+
+    .modal-content {
+      background: var(--white);
+      border-radius: var(--radius-md);
+      max-width: 400px;
+      width: 100%;
+      box-shadow: var(--shadow-lg);
+    }
+
+    .modal-header {
+      padding: var(--spacing-lg);
+      border-bottom: 1px solid var(--light);
+      text-align: center;
+    }
+
+    .modal-header h2 {
+      margin: 0;
+      font-size: 1.25rem;
+      color: var(--dark);
+    }
+
+    .modal-body {
+      padding: var(--spacing-lg);
+    }
+
+    .form-group {
+      margin-bottom: var(--spacing-md);
+    }
+
+    .form-group label {
+      display: block;
+      margin-bottom: var(--spacing-xs);
+      font-weight: 500;
+      color: var(--dark);
+    }
+
+    .edit-input {
+      width: 100%;
+      padding: var(--spacing-md);
+      border: 1px solid var(--gray);
+      border-radius: var(--radius-sm);
+      font-size: 1rem;
+      box-sizing: border-box;
+    }
+
+    .edit-input:focus {
+      outline: none;
+      border-color: var(--primary);
+    }
+
+    .modal-footer {
+      padding: var(--spacing-lg);
+      border-top: 1px solid var(--light);
+      display: flex;
+      gap: var(--spacing-sm);
+      justify-content: flex-end;
+    }
+
+    .modal-footer .btn {
+      padding: var(--spacing-sm) var(--spacing-lg);
+      border: none;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      font-size: 1rem;
+    }
+
+    .btn-primary {
+      background-color: var(--primary);
+      color: var(--white);
+    }
+
+    .btn-primary:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .btn-secondary {
+      background-color: var(--gray);
+      color: var(--white);
+    }
+
+    .btn-secondary:hover {
+      background-color: var(--gray-dark);
     }
 
     /* Ajustes adicionales para pantallas muy pequeñas */
