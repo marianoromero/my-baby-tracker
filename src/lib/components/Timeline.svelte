@@ -578,8 +578,9 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      margin: var(--spacing-md) 0 var(--spacing-lg) 0;
+      margin: var(--spacing-md) 0 calc(var(--spacing-lg) + var(--spacing-md)) 0;
       z-index: 3;
+      min-height: 120px;
     }
 
     .date-circle {
@@ -965,7 +966,8 @@
 
       .date-divider {
         justify-content: center;
-        margin: var(--spacing-xl) 0 var(--spacing-lg) 0;
+        margin: var(--spacing-xl) 0 calc(var(--spacing-lg) + var(--spacing-md)) 0;
+        min-height: 100px;
       }
 
       .date-circle {
@@ -1156,7 +1158,8 @@
 
       /* Mayor separación para evitar solapamiento */
       .date-divider {
-        margin: calc(var(--spacing-xl) + var(--spacing-md)) 0 var(--spacing-lg) 0;
+        margin: calc(var(--spacing-xl) + var(--spacing-md)) 0 calc(var(--spacing-xl) + var(--spacing-sm)) 0;
+        min-height: 90px;
       }
     }
     
