@@ -625,12 +625,12 @@
 
     /* Posicionamiento alternante */
     .timeline-item.left {
-      justify-content: center;
+      justify-content: flex-end;
       padding-right: calc(50% + 30px);
     }
 
     .timeline-item.right {
-      justify-content: center;
+      justify-content: flex-start;
       padding-left: calc(50% + 30px);
     }
 
@@ -897,14 +897,14 @@
         min-width: 120px;
       }
 
-      /* Timeline mobile: layout simplificado */
+      /* Timeline mobile: mantener alternancia */
       .vertical-timeline {
-        padding: var(--spacing-sm) var(--spacing-xs);
+        padding: var(--spacing-sm);
       }
 
       .timeline-line {
-        left: 30px;
-        transform: none;
+        left: 50%;
+        transform: translateX(-50%);
         width: 2px;
       }
 
@@ -914,18 +914,21 @@
         width: 100%;
       }
 
-      .timeline-item.left,
+      .timeline-item.left {
+        justify-content: flex-end;
+        padding-right: calc(50% + 20px);
+        padding-left: var(--spacing-xs);
+      }
+
       .timeline-item.right {
-        display: flex;
-        padding: 0 0 0 65px;
         justify-content: flex-start;
-        align-items: flex-start;
-        flex-direction: row;
+        padding-left: calc(50% + 20px);
+        padding-right: var(--spacing-xs);
       }
 
       .timeline-connector {
-        left: 30px;
-        transform: none;
+        left: 50%;
+        transform: translateX(-50%);
         top: 10px;
       }
 
@@ -952,23 +955,21 @@
       }
 
       .date-divider {
-        justify-content: flex-start;
-        padding-left: 10px;
-        margin: var(--spacing-sm) 0;
+        justify-content: center;
+        margin: var(--spacing-lg) 0 var(--spacing-md) 0;
       }
 
       .date-circle {
         width: 40px;
         height: 40px;
         font-size: 0.9rem;
-        margin-left: -5px;
       }
 
       .date-label {
         top: 50px;
         font-size: 0.7rem;
-        left: 15px;
-        transform: none;
+        left: 50%;
+        transform: translateX(-50%);
       }
 
       .card-header {
@@ -1089,28 +1090,23 @@
 
     /* Ajustes adicionales para pantallas muy pequeñas */
     @media (max-width: 480px) {
-      .timeline-line {
-        left: 25px;
+      .timeline-item.left {
+        padding-right: calc(50% + 15px);
+        padding-left: 2px;
       }
 
-      .timeline-connector {
-        left: 25px;
-      }
-
-      .timeline-item.left,
       .timeline-item.right {
-        padding: 0 0 0 55px;
+        padding-left: calc(50% + 15px);
+        padding-right: 2px;
       }
 
       .date-circle {
         width: 35px;
         height: 35px;
         font-size: 0.8rem;
-        margin-left: -10px;
       }
 
       .date-label {
-        left: 10px;
         font-size: 0.65rem;
       }
 
@@ -1122,6 +1118,10 @@
 
       .timeline-card {
         padding: var(--spacing-xs);
+      }
+
+      .timeline-card-wrapper {
+        max-width: 140px;
       }
     }
     
