@@ -329,9 +329,9 @@
         {#each Object.entries(filteredEvents) as [date, dateEvents]}
           <!-- Encabezado de fecha -->
           <div class="date-divider">
-            <div class="date-circle">
+            <!--<div class="date-circle">
               <i class="fa-solid fa-calendar"></i>
-            </div>
+            </div>-->
             <div class="date-label">{date}</div>
           </div>
           
@@ -600,7 +600,7 @@
 
     .date-label {
       position: absolute;
-      top: 75px;
+      top: 25px;
       left: 50%;
       transform: translateX(-50%);
       background: var(--primary);
