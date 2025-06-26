@@ -83,6 +83,11 @@
       goto(`${base}/family`)
     }
 
+    function navigateToStats() {
+      closeMenu()
+      goto(`${base}/stats`)
+    }
+
     function navigateToSubject(subjectId) {
       goto(`${base}/subject/${subjectId}`)
     }
@@ -174,6 +179,11 @@
       <button class="menu-item" on:click={navigateToTimeline}>
         <i class="fa-solid fa-history"></i>
         Timeline
+      </button>
+      
+      <button class="menu-item" on:click={navigateToStats}>
+        <i class="fa-solid fa-chart-bar"></i>
+        Stats
       </button>
       
       <button class="menu-item" on:click={navigateToFamily}>
