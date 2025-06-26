@@ -4,6 +4,7 @@
     import { page } from '$app/stores';
     import { base } from '$app/paths';
     import { goto } from '$app/navigation';
+    import { onMount } from 'svelte';
     
     let email = ''
     let password = ''
@@ -11,6 +12,14 @@
     let isLogin = true
     let error = null
     let successMessage = null
+
+    // Check for error parameters on mount
+    onMount(() => {
+        const urlError = $page.url.searchParams.get('error')
+        if (urlError) {
+            error = decodeURIComponent(urlError)
+        }
+    })
   
     const handleSubmit = async () => {
       error = null
