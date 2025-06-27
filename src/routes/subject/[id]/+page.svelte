@@ -30,6 +30,20 @@
     let bottleAmount = 120 // Cantidad por defecto
     let customAmount = ''
     const bottleAmounts = [30, 60, 90, 120, 150, 180]
+
+    // Variables para modal de peso
+    let showWeightModal = false
+    let selectedWeightAction = null
+    let weightKg = 3 // Kilogramos por defecto
+    let weightGrams = 0 // Gramos por defecto (0-999)
+    let lastWeight = null // Último peso registrado
+
+    // Variables para modal de estatura
+    let showHeightModal = false
+    let selectedHeightAction = null
+    let heightMeters = 0 // Metros por defecto
+    let heightCentimeters = 50 // Centímetros por defecto (0-99)
+    let lastHeight = null // Última estatura registrada
     
     // Cargar datos del sujeto y sus acciones
     $: {
@@ -59,6 +73,22 @@
             return
         }
 
+        // Detectar si es una acción especial (peso)
+        if (isWeightAction(actionName)) {
+            selectedWeightAction = actionName
+            await loadLastWeight() // Cargar último peso registrado
+            showWeightModal = true
+            return
+        }
+
+        // Detectar si es una acción especial (estatura)
+        if (isHeightAction(actionName)) {
+            selectedHeightAction = actionName
+            await loadLastHeight() // Cargar última estatura registrada
+            showHeightModal = true
+            return
+        }
+
         await executeEventRegistration(actionName)
     }
 
@@ -66,10 +96,22 @@
     async function executeEventRegistration(actionName, additionalData = null) {
         registering = true
         
-        // Por ahora, incluir la cantidad en el nombre de la acción hasta que se aplique la migración
-        const finalActionName = additionalData 
-            ? `${actionName} (${additionalData.amount}ml)`
-            : actionName
+        // Construir el nombre final según el tipo de dato adicional
+        let finalActionName = actionName
+        let successMessage = `✅ ${actionName} registrado`
+        
+        if (additionalData) {
+            if (additionalData.type === 'bottle_feeding') {
+                finalActionName = `${actionName} (${additionalData.amount}ml)`
+                successMessage = `✅ ${actionName} registrado (${additionalData.amount}ml)`
+            } else if (additionalData.type === 'weight_measurement') {
+                finalActionName = `${actionName} (${additionalData.formatted})`
+                successMessage = `✅ ${actionName} registrado (${additionalData.formatted})`
+            } else if (additionalData.type === 'height_measurement') {
+                finalActionName = `${actionName} (${additionalData.formatted})`
+                successMessage = `✅ ${actionName} registrado (${additionalData.formatted})`
+            }
+        }
         
         const eventData = {
             subject_id: subject.id,
@@ -86,10 +128,7 @@
             console.error('Error al registrar evento:', error)
             alert('Error al registrar el evento')
         } else {
-            const message = additionalData 
-                ? `✅ ${actionName} registrado (${additionalData.amount}ml)`
-                : `✅ ${actionName} registrado`
-            showNotification(message)
+            showNotification(successMessage)
         }
         
         registering = false
@@ -99,6 +138,22 @@
     function isBottleAction(actionName) {
         const bottleKeywords = ['biber', 'bibi', 'botella', 'milk', 'leche', 'formula']
         return bottleKeywords.some(keyword => 
+            actionName.toLowerCase().includes(keyword)
+        )
+    }
+
+    // Detectar si una acción es de tipo peso
+    function isWeightAction(actionName) {
+        const weightKeywords = ['peso', 'weight', 'kg', 'kilo', 'pesaje', 'pesa']
+        return weightKeywords.some(keyword => 
+            actionName.toLowerCase().includes(keyword)
+        )
+    }
+
+    // Detectar si una acción es de tipo estatura
+    function isHeightAction(actionName) {
+        const heightKeywords = ['estatura', 'altura', 'height', 'tall', 'talla', 'medir', 'medida']
+        return heightKeywords.some(keyword => 
             actionName.toLowerCase().includes(keyword)
         )
     }
@@ -350,6 +405,94 @@
         bottleAmount = amount
         customAmount = ''
     }
+
+    // Funciones para modal de peso
+    async function loadLastWeight() {
+        try {
+            const { data: lastWeightEvent, error } = await supabase
+                .from('events')
+                .select('action_name')
+                .eq('subject_id', subject.id)
+                .like('action_name', '%peso%')
+                .order('event_timestamp', { ascending: false })
+                .limit(1)
+                .single()
+
+            if (!error && lastWeightEvent) {
+                // Extraer peso del formato "Peso (3.5kg)"
+                const match = lastWeightEvent.action_name.match(/\((\d+)\.(\d+)kg\)/)
+                if (match) {
+                    weightKg = parseInt(match[1])
+                    weightGrams = parseInt(match[2])
+                    lastWeight = `${weightKg}.${match[2].padStart(3, '0')}kg`
+                }
+            }
+        } catch (error) {
+            console.error('Error cargando último peso:', error)
+        }
+    }
+
+    function confirmWeightAmount() {
+        const totalWeight = weightKg + (weightGrams / 1000)
+        const formattedWeight = `${weightKg}.${weightGrams.toString().padStart(3, '0')}kg`
+        
+        executeEventRegistration(selectedWeightAction, { 
+            weight: totalWeight,
+            formatted: formattedWeight,
+            type: 'weight_measurement'
+        })
+        closeWeightModal()
+    }
+
+    function closeWeightModal() {
+        showWeightModal = false
+        selectedWeightAction = null
+        // No resetear los valores para mantener el último peso
+    }
+
+    // Funciones para modal de estatura
+    async function loadLastHeight() {
+        try {
+            const { data: lastHeightEvent, error } = await supabase
+                .from('events')
+                .select('action_name')
+                .eq('subject_id', subject.id)
+                .or('action_name.ilike.%estatura%,action_name.ilike.%altura%')
+                .order('event_timestamp', { ascending: false })
+                .limit(1)
+                .single()
+
+            if (!error && lastHeightEvent) {
+                // Extraer estatura del formato "Estatura (0.65m)"
+                const match = lastHeightEvent.action_name.match(/\((\d+)\.(\d+)m\)/)
+                if (match) {
+                    heightMeters = parseInt(match[1])
+                    heightCentimeters = parseInt(match[2])
+                    lastHeight = `${heightMeters}.${match[2].padStart(2, '0')}m`
+                }
+            }
+        } catch (error) {
+            console.error('Error cargando última estatura:', error)
+        }
+    }
+
+    function confirmHeightAmount() {
+        const totalHeight = heightMeters + (heightCentimeters / 100)
+        const formattedHeight = `${heightMeters}.${heightCentimeters.toString().padStart(2, '0')}m`
+        
+        executeEventRegistration(selectedHeightAction, { 
+            height: totalHeight,
+            formatted: formattedHeight,
+            type: 'height_measurement'
+        })
+        closeHeightModal()
+    }
+
+    function closeHeightModal() {
+        showHeightModal = false
+        selectedHeightAction = null
+        // No resetear los valores para mantener la última estatura
+    }
 </script>
 
 <div class="container">
@@ -553,6 +696,146 @@
                     class="btn btn-primary" 
                     style="background-color: {subject?.color}"
                     on:click={confirmBottleAmount}
+                >
+                    <i class="fa-solid fa-check"></i>
+                    Registrar
+                </button>
+            </div>
+        </div>
+    </div>
+{/if}
+
+<!-- Modal de peso -->
+{#if showWeightModal}
+    <div class="modal-overlay" on:click={closeWeightModal}>
+        <div class="modal-content weight-modal" on:click|stopPropagation>
+            <div class="modal-header">
+                <i class="fa-solid fa-weight-scale weight-icon"></i>
+                <h2>¿Cuánto pesa?</h2>
+                <p class="subtitle">Acción: <strong>{selectedWeightAction}</strong></p>
+                {#if lastWeight}
+                    <p class="last-weight">Último peso: <strong>{lastWeight}</strong></p>
+                {/if}
+            </div>
+            <div class="modal-body">
+                <div class="weight-selectors">
+                    <div class="weight-group">
+                        <label for="kg-slider">Kilogramos</label>
+                        <div class="slider-container">
+                            <input
+                                id="kg-slider"
+                                type="range"
+                                bind:value={weightKg}
+                                min="1"
+                                max="15"
+                                step="1"
+                                class="weight-slider kg-slider"
+                            />
+                            <div class="slider-value">{weightKg} kg</div>
+                        </div>
+                    </div>
+                    
+                    <div class="weight-group">
+                        <label for="grams-slider">Gramos</label>
+                        <div class="slider-container">
+                            <input
+                                id="grams-slider"
+                                type="range"
+                                bind:value={weightGrams}
+                                min="0"
+                                max="999"
+                                step="5"
+                                class="weight-slider grams-slider"
+                            />
+                            <div class="slider-value">{weightGrams.toString().padStart(3, '0')} g</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="weight-preview">
+                    <div class="total-weight">
+                        <strong>{weightKg}.{weightGrams.toString().padStart(3, '0')} kg</strong>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" on:click={closeWeightModal}>
+                    Cancelar
+                </button>
+                <button 
+                    class="btn btn-primary" 
+                    style="background-color: {subject?.color}"
+                    on:click={confirmWeightAmount}
+                >
+                    <i class="fa-solid fa-check"></i>
+                    Registrar
+                </button>
+            </div>
+        </div>
+    </div>
+{/if}
+
+<!-- Modal de estatura -->
+{#if showHeightModal}
+    <div class="modal-overlay" on:click={closeHeightModal}>
+        <div class="modal-content height-modal" on:click|stopPropagation>
+            <div class="modal-header">
+                <i class="fa-solid fa-ruler-vertical height-icon"></i>
+                <h2>¿Cuánto mide?</h2>
+                <p class="subtitle">Acción: <strong>{selectedHeightAction}</strong></p>
+                {#if lastHeight}
+                    <p class="last-height">Última estatura: <strong>{lastHeight}</strong></p>
+                {/if}
+            </div>
+            <div class="modal-body">
+                <div class="height-selectors">
+                    <div class="height-group">
+                        <label for="meters-slider">Metros</label>
+                        <div class="slider-container">
+                            <input
+                                id="meters-slider"
+                                type="range"
+                                bind:value={heightMeters}
+                                min="0"
+                                max="2"
+                                step="1"
+                                class="height-slider meters-slider"
+                            />
+                            <div class="slider-value">{heightMeters} m</div>
+                        </div>
+                    </div>
+                    
+                    <div class="height-group">
+                        <label for="centimeters-slider">Centímetros</label>
+                        <div class="slider-container">
+                            <input
+                                id="centimeters-slider"
+                                type="range"
+                                bind:value={heightCentimeters}
+                                min="0"
+                                max="99"
+                                step="1"
+                                class="height-slider centimeters-slider"
+                            />
+                            <div class="slider-value">{heightCentimeters.toString().padStart(2, '0')} cm</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="height-preview">
+                    <div class="total-height">
+                        <strong>{heightMeters}.{heightCentimeters.toString().padStart(2, '0')} m</strong>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" on:click={closeHeightModal}>
+                    Cancelar
+                </button>
+                <button 
+                    class="btn btn-primary" 
+                    style="background-color: {subject?.color}"
+                    on:click={confirmHeightAmount}
                 >
                     <i class="fa-solid fa-check"></i>
                     Registrar
@@ -1004,6 +1287,228 @@
         
         .bottle-modal {
             margin: var(--spacing-sm);
+        }
+    }
+
+    /* Estilos para modal de peso */
+    .weight-modal {
+        max-width: 450px;
+    }
+
+    .weight-icon {
+        font-size: 1.5rem;
+        color: var(--primary);
+        margin-bottom: var(--spacing-sm);
+    }
+
+    .last-weight {
+        color: var(--gray-dark);
+        font-size: 0.85rem;
+        margin: var(--spacing-xs) 0 0 0;
+        font-style: italic;
+    }
+
+    .weight-selectors {
+        display: flex;
+        flex-direction: column;
+        gap: var(--spacing-lg);
+        margin-bottom: var(--spacing-lg);
+    }
+
+    .weight-group {
+        display: flex;
+        flex-direction: column;
+        gap: var(--spacing-sm);
+    }
+
+    .weight-group label {
+        font-weight: 500;
+        color: var(--dark);
+        font-size: 0.9rem;
+    }
+
+    .slider-container {
+        display: flex;
+        align-items: center;
+        gap: var(--spacing-md);
+    }
+
+    .weight-slider {
+        flex: 1;
+        height: 8px;
+        -webkit-appearance: none;
+        appearance: none;
+        background: var(--light);
+        border-radius: 5px;
+        outline: none;
+        cursor: pointer;
+    }
+
+    .weight-slider::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        appearance: none;
+        width: 20px;
+        height: 20px;
+        background: var(--primary);
+        border-radius: 50%;
+        cursor: pointer;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    }
+
+    .weight-slider::-moz-range-thumb {
+        width: 20px;
+        height: 20px;
+        background: var(--primary);
+        border-radius: 50%;
+        cursor: pointer;
+        border: none;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    }
+
+    .slider-value {
+        min-width: 60px;
+        text-align: center;
+        font-weight: 600;
+        color: var(--primary);
+        background: var(--background);
+        padding: var(--spacing-xs) var(--spacing-sm);
+        border-radius: var(--radius-sm);
+        font-size: 0.9rem;
+    }
+
+    .weight-preview {
+        border-top: 1px solid var(--light);
+        padding-top: var(--spacing-lg);
+        text-align: center;
+    }
+
+    .total-weight {
+        font-size: 1.8rem;
+        color: var(--primary);
+        background: var(--background);
+        padding: var(--spacing-md) var(--spacing-lg);
+        border-radius: var(--radius-md);
+        display: inline-block;
+        min-width: 150px;
+    }
+
+    /* Responsive para modal de peso */
+    @media (max-width: 640px) {
+        .weight-modal {
+            margin: var(--spacing-sm);
+        }
+        
+        .slider-container {
+            flex-direction: column;
+            gap: var(--spacing-sm);
+            align-items: stretch;
+        }
+        
+        .slider-value {
+            min-width: auto;
+            text-align: center;
+        }
+        
+        .total-weight {
+            font-size: 1.5rem;
+            min-width: auto;
+        }
+    }
+
+    /* Estilos para modal de estatura */
+    .height-modal {
+        max-width: 450px;
+    }
+
+    .height-icon {
+        font-size: 1.5rem;
+        color: var(--primary);
+        margin-bottom: var(--spacing-sm);
+    }
+
+    .last-height {
+        color: var(--gray-dark);
+        font-size: 0.85rem;
+        margin: var(--spacing-xs) 0 0 0;
+        font-style: italic;
+    }
+
+    .height-selectors {
+        display: flex;
+        flex-direction: column;
+        gap: var(--spacing-lg);
+        margin-bottom: var(--spacing-lg);
+    }
+
+    .height-group {
+        display: flex;
+        flex-direction: column;
+        gap: var(--spacing-sm);
+    }
+
+    .height-group label {
+        font-weight: 500;
+        color: var(--dark);
+        font-size: 0.9rem;
+    }
+
+    .height-slider {
+        flex: 1;
+        height: 8px;
+        -webkit-appearance: none;
+        appearance: none;
+        background: var(--light);
+        border-radius: 5px;
+        outline: none;
+        cursor: pointer;
+    }
+
+    .height-slider::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        appearance: none;
+        width: 20px;
+        height: 20px;
+        background: var(--secondary, #28a745);
+        border-radius: 50%;
+        cursor: pointer;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    }
+
+    .height-slider::-moz-range-thumb {
+        width: 20px;
+        height: 20px;
+        background: var(--secondary, #28a745);
+        border-radius: 50%;
+        cursor: pointer;
+        border: none;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    }
+
+    .height-preview {
+        border-top: 1px solid var(--light);
+        padding-top: var(--spacing-lg);
+        text-align: center;
+    }
+
+    .total-height {
+        font-size: 1.8rem;
+        color: var(--secondary, #28a745);
+        background: var(--background);
+        padding: var(--spacing-md) var(--spacing-lg);
+        border-radius: var(--radius-md);
+        display: inline-block;
+        min-width: 150px;
+    }
+
+    /* Responsive para modal de estatura */
+    @media (max-width: 640px) {
+        .height-modal {
+            margin: var(--spacing-sm);
+        }
+        
+        .total-height {
+            font-size: 1.5rem;
+            min-width: auto;
         }
     }
 

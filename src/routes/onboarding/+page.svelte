@@ -203,7 +203,7 @@
 
       // Crear acciones por defecto para cada sujeto
       const defaultActions = {
-        'Mi bebé': ['Lactancia', 'Cambio pañal', 'Siesta'],
+        'Mi bebé': ['Lactancia', 'Cambio pañal', 'Siesta', 'Peso', 'Estatura'],
         'Mi pareja': ['Salió de casa', 'Llegó a casa', 'Comida'],
         'Yo': ['Salí de casa', 'Llegué a casa', 'Descanso']
       }

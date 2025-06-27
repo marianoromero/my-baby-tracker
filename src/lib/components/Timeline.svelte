@@ -90,6 +90,8 @@
         'Despertar': 'fa-sun',
         'Baño': 'fa-bath',
         'Medicamento': 'fa-pills',
+        'Peso': 'fa-weight-scale',
+        'Estatura': 'fa-ruler-vertical',
         'Salió de casa': 'fa-door-open',
         'Llegó a casa': 'fa-home',
         'Salí de casa': 'fa-door-open',

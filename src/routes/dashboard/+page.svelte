@@ -88,6 +88,11 @@
       goto(`${base}/stats`)
     }
 
+    function navigateToImportPediatric() {
+      closeMenu()
+      goto(`${base}/admin/import-pediatric`)
+    }
+
     function navigateToSubject(subjectId) {
       goto(`${base}/subject/${subjectId}`)
     }
@@ -186,9 +191,14 @@
         Stats
       </button>
       
+      <button class="menu-item" on:click={navigateToImportPediatric}>
+        <i class="fa-solid fa-file-import"></i>
+        Importar Datos
+      </button>
+      
       <button class="menu-item" on:click={navigateToFamily}>
         <i class="fa-solid fa-users"></i>
-        Familia
+        Family
       </button>
     </div>
 
