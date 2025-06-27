@@ -1,6 +1,7 @@
 <!-- Página temporal para importar datos pediátricos -->
 <script>
   import { insertPediatricDataForCurrentUser, previewPediatricData } from '$lib/utils/insertPediatricData.js'
+  import { cleanAndFixPediatricData } from '$lib/utils/cleanPediatricData.js'
   import { user } from '$lib/stores/auth'
   import { goto } from '$app/navigation'
   import { base } from '$app/paths'
@@ -9,6 +10,8 @@
   let importResult = null
   let error = null
   let preview = null
+  let cleaning = false
+  let cleanResult = null
   
   // Verificar autenticación
   $: if (!$user) {
@@ -43,6 +46,23 @@
   
   function goToTimeline() {
     goto(`${base}/timeline`)
+  }
+  
+  async function handleClean() {
+    cleaning = true
+    error = null
+    cleanResult = null
+    
+    try {
+      const result = await cleanAndFixPediatricData()
+      cleanResult = result
+      console.log('✅ Limpieza completada:', result)
+    } catch (err) {
+      error = err.message
+      console.error('❌ Error en limpieza:', err)
+    } finally {
+      cleaning = false
+    }
   }
 </script>
 
@@ -91,6 +111,51 @@
         </div>
       </div>
     {/if}
+    
+    <div class="clean-section">
+      <h2>🧹 Corrección de Datos</h2>
+      
+      {#if !cleanResult && !error}
+        <div class="info-box">
+          <i class="fa-solid fa-info-circle"></i>
+          <p><strong>Problema detectado:</strong> Algunos eventos de peso/estatura aparecen en "Mariano" en lugar de "Mi Bebé".</p>
+          <p>Esta función moverá automáticamente todos los eventos pediátricos al sujeto correcto (Mi Bebé).</p>
+        </div>
+        
+        <button 
+          class="btn btn-secondary clean-btn" 
+          on:click={handleClean}
+          disabled={cleaning}
+        >
+          {#if cleaning}
+            <i class="fa-solid fa-spinner fa-spin"></i>
+            Corrigiendo datos...
+          {:else}
+            <i class="fa-solid fa-broom"></i>
+            Corregir Atribución de Eventos
+          {/if}
+        </button>
+      {/if}
+      
+      {#if cleanResult}
+        <div class="success-box">
+          <i class="fa-solid fa-check-circle"></i>
+          <h3>✅ Corrección Completada</h3>
+          <div class="result-details">
+            <p><strong>Eventos movidos:</strong> {cleanResult.cleaned}</p>
+            <p><strong>Total eventos en {cleanResult.babySubjectName}:</strong> {cleanResult.totalBabyEvents}</p>
+            <p><strong>Datos ahora aparecen correctamente en:</strong> {cleanResult.babySubjectName}</p>
+          </div>
+          
+          <div class="action-buttons">
+            <button class="btn btn-primary" on:click={goToTimeline}>
+              <i class="fa-solid fa-timeline"></i>
+              Ver Timeline Corregido
+            </button>
+          </div>
+        </div>
+      {/if}
+    </div>
     
     <div class="import-section">
       <h2>🚀 Importación</h2>
@@ -195,7 +260,7 @@
     margin: 0 auto;
   }
   
-  .preview-section, .import-section {
+  .preview-section, .import-section, .clean-section {
     background: var(--white);
     border-radius: var(--radius-lg);
     padding: var(--spacing-xl);
@@ -203,7 +268,7 @@
     box-shadow: var(--shadow-sm);
   }
   
-  .preview-section h2, .import-section h2 {
+  .preview-section h2, .import-section h2, .clean-section h2 {
     margin: 0 0 var(--spacing-lg) 0;
     color: var(--dark);
   }
@@ -257,7 +322,7 @@
     margin: var(--spacing-xs) 0;
   }
   
-  .warning-box, .success-box, .error-box {
+  .warning-box, .success-box, .error-box, .info-box {
     border-radius: var(--radius-md);
     padding: var(--spacing-lg);
     margin-bottom: var(--spacing-lg);
@@ -285,12 +350,18 @@
     color: #721c24;
   }
   
-  .warning-box i, .success-box i, .error-box i {
+  .info-box {
+    background: #d1ecf1;
+    border: 1px solid #bee5eb;
+    color: #0c5460;
+  }
+  
+  .warning-box i, .success-box i, .error-box i, .info-box i {
     font-size: 2rem;
     margin-bottom: var(--spacing-md);
   }
   
-  .import-btn {
+  .import-btn, .clean-btn {
     width: 100%;
     padding: var(--spacing-lg);
     font-size: 1.1rem;

@@ -109,9 +109,9 @@ export async function loadEvents(filter = 'today') {
         .lt('event_timestamp', end)
     }
     
-    // Limitar resultados si es "all"
+    // Limitar resultados si es "all" para evitar cargar demasiados datos
     if (filter === 'all') {
-      query = query.limit(100)
+      query = query.limit(500) // Aumentado de 100 a 500 para mostrar más historial
     }
     
     const { data, error } = await query

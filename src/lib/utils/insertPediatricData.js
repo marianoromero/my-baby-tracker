@@ -34,26 +34,39 @@ export async function insertPediatricDataForCurrentUser() {
     console.log('✅ Usuario actual:', user.email)
     const userId = user.id
     
-    // Buscar los sujetos del usuario actual
-    const { data: userSubjects, error: subjectError } = await supabase
-      .from('subjects')
-      .select('id, name, family_id')
-      .eq('linked_user_id', userId)
+    // Primero obtener la familia del usuario
+    const { data: userFamily, error: familyError } = await supabase
+      .from('family_members')
+      .select('family_id')
+      .eq('user_id', userId)
+      .single()
     
-    if (subjectError) {
-      throw new Error('Error buscando sujetos: ' + subjectError.message)
+    if (familyError || !userFamily) {
+      throw new Error('Error obteniendo familia del usuario: ' + (familyError?.message || 'Familia no encontrada'))
     }
     
-    // Buscar el bebé (probablemente el primer sujeto o uno que contenga palabras relacionadas)
+    // Buscar todos los sujetos de la familia (no solo los vinculados al usuario)
+    const { data: familySubjects, error: subjectError } = await supabase
+      .from('subjects')
+      .select('id, name, family_id, linked_user_id')
+      .eq('family_id', userFamily.family_id)
+    
+    if (subjectError) {
+      throw new Error('Error buscando sujetos de la familia: ' + subjectError.message)
+    }
+    
+    // Buscar específicamente "Mi Bebé" o sujetos similares (sin linked_user_id)
     let babySubject = null
-    if (userSubjects && userSubjects.length > 0) {
-      babySubject = userSubjects.find(s => 
-        s.name.toLowerCase().includes('bebé') || 
+    if (familySubjects && familySubjects.length > 0) {
+      babySubject = familySubjects.find(s => 
+        s.name.toLowerCase().includes('mi bebé') || 
+        s.name.toLowerCase().includes('bebé') ||
         s.name.toLowerCase().includes('male') ||
         s.name.toLowerCase().includes('baby') ||
         s.name.toLowerCase().includes('niñ') ||
-        s.name.toLowerCase().includes('hij')
-      ) || userSubjects[0] // Si no encuentra, toma el primero
+        s.name.toLowerCase().includes('hij') ||
+        !s.linked_user_id // Priorizar sujetos sin usuario vinculado (el bebé)
+      ) || familySubjects[0] // Si no encuentra, toma el primero
     }
     
     if (!babySubject) {
