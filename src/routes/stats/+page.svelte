@@ -13,6 +13,16 @@
     let loading = true
     let viewMode = 'chart' // 'chart' o 'table'
     
+    // Variables para zoom y navegación táctil
+    let chartScale = 1
+    let chartOffsetX = 0
+    let isDragging = false
+    let dragStartX = 0
+    let dragStartOffsetX = 0
+    let activeTooltip = null
+    let tooltipX = 0
+    let tooltipY = 0
+    
     // Configurar el inicio de la semana (lunes)
     function getWeekStart(date) {
         const d = new Date(date)
@@ -234,6 +244,100 @@
     // Alternar entre vista de gráfico y tabla
     function toggleViewMode() {
         viewMode = viewMode === 'chart' ? 'table' : 'chart'
+        // Reset zoom cuando cambiamos de vista
+        resetChartZoom()
+    }
+    
+    // Funciones para zoom y navegación táctil
+    function resetChartZoom() {
+        chartScale = 1
+        chartOffsetX = 0
+        activeTooltip = null
+    }
+    
+    function handleTouchStart(event, chartData, chartType) {
+        if (event.touches.length === 1) {
+            isDragging = true
+            dragStartX = event.touches[0].clientX
+            dragStartOffsetX = chartOffsetX
+            
+            // Mostrar tooltip en el punto tocado
+            const rect = event.target.getBoundingClientRect()
+            const x = event.touches[0].clientX - rect.left
+            const scaledX = (x - chartOffsetX) / chartScale
+            const dataIndex = Math.round((scaledX - 25) / (750 / Math.max(chartData.length - 1, 1)))
+            
+            if (dataIndex >= 0 && dataIndex < chartData.length) {
+                showTooltip(chartData[dataIndex], x, event.touches[0].clientY - rect.top, chartType)
+            }
+        } else if (event.touches.length === 2) {
+            // Zoom con dos dedos
+            const touch1 = event.touches[0]
+            const touch2 = event.touches[1]
+            const distance = Math.sqrt(
+                Math.pow(touch2.clientX - touch1.clientX, 2) + 
+                Math.pow(touch2.clientY - touch1.clientY, 2)
+            )
+            
+            if (!isDragging) {
+                isDragging = true
+                dragStartX = distance
+            }
+        }
+        event.preventDefault()
+    }
+    
+    function handleTouchMove(event, chartData, chartType) {
+        if (!isDragging) return
+        
+        if (event.touches.length === 1) {
+            // Arrastrar para navegar
+            const deltaX = event.touches[0].clientX - dragStartX
+            chartOffsetX = Math.max(Math.min(dragStartOffsetX + deltaX, 100), -200 * chartScale)
+            
+            // Actualizar tooltip
+            const rect = event.target.getBoundingClientRect()
+            const x = event.touches[0].clientX - rect.left
+            const scaledX = (x - chartOffsetX) / chartScale
+            const dataIndex = Math.round((scaledX - 25) / (750 / Math.max(chartData.length - 1, 1)))
+            
+            if (dataIndex >= 0 && dataIndex < chartData.length) {
+                showTooltip(chartData[dataIndex], x, event.touches[0].clientY - rect.top, chartType)
+            }
+        } else if (event.touches.length === 2) {
+            // Zoom con pellizco
+            const touch1 = event.touches[0]
+            const touch2 = event.touches[1]
+            const distance = Math.sqrt(
+                Math.pow(touch2.clientX - touch1.clientX, 2) + 
+                Math.pow(touch2.clientY - touch1.clientY, 2)
+            )
+            
+            const scale = distance / dragStartX
+            chartScale = Math.max(Math.min(chartScale * scale, 3), 0.5)
+            dragStartX = distance
+        }
+        event.preventDefault()
+    }
+    
+    function handleTouchEnd(event) {
+        isDragging = false
+        // Mantener tooltip visible por un momento después del toque
+        setTimeout(() => {
+            if (!isDragging) {
+                activeTooltip = null
+            }
+        }, 2000)
+        event.preventDefault()
+    }
+    
+    function showTooltip(dataPoint, x, y, chartType) {
+        activeTooltip = {
+            data: dataPoint,
+            x: x,
+            y: y - 50,
+            type: chartType
+        }
     }
     
     onMount(() => {
@@ -272,10 +376,17 @@
             <div class="growth-section">
                 <div class="section-header">
                     <h2>Crecimiento (Peso y Estatura)</h2>
-                    <button class="toggle-button" on:click={toggleViewMode}>
-                        <i class="fa-solid {viewMode === 'chart' ? 'fa-table' : 'fa-chart-line'}"></i>
-                        {viewMode === 'chart' ? 'Ver Tabla' : 'Ver Gráfico'}
-                    </button>
+                    <div class="header-buttons">
+                        {#if viewMode === 'chart' && (chartScale !== 1 || chartOffsetX !== 0)}
+                            <button class="reset-zoom-button" on:click={resetChartZoom} title="Resetear zoom">
+                                <i class="fa-solid fa-expand"></i>
+                            </button>
+                        {/if}
+                        <button class="toggle-button" on:click={toggleViewMode}>
+                            <i class="fa-solid {viewMode === 'chart' ? 'fa-table' : 'fa-chart-line'}"></i>
+                            {viewMode === 'chart' ? 'Ver Tabla' : 'Ver Gráfico'}
+                        </button>
+                    </div>
                 </div>
                 
                 {#if growthData.length === 0}
@@ -285,6 +396,11 @@
                     </div>
                 {:else}
                     {#if viewMode === 'chart'}
+                        <!-- Instrucciones de uso -->
+                        <div class="chart-instructions">
+                            <p><i class="fa-solid fa-hand-pointer"></i> Toca y arrastra para navegar • <i class="fa-solid fa-magnifying-glass-plus"></i> Pellizca para hacer zoom</p>
+                        </div>
+                        
                         <!-- Vista de gráficos separados -->
                         <div class="dual-charts">
                             <!-- Gráfico de Peso -->
@@ -296,55 +412,79 @@
                                 <div class="chart-section">
                                     <h3>Evolución del Peso</h3>
                                     <div class="chart-container">
-                                        <svg class="line-chart" viewBox="0 0 800 300">
-                                            <!-- Grid background -->
-                                            <defs>
-                                                <pattern id="weight-grid" width="40" height="15" patternUnits="userSpaceOnUse">
-                                                    <path d="M 40 0 L 0 0 0 15" fill="none" stroke="#f0f0f0" stroke-width="1"/>
-                                                </pattern>
-                                            </defs>
-                                            <rect width="800" height="300" fill="url(#weight-grid)" />
-                                            
-                                            <!-- Weight line -->
-                                            {#if weightData.length > 1}
+                                        <div class="chart-wrapper">
+                                            <svg 
+                                                class="line-chart touch-chart" 
+                                                viewBox="0 0 800 350"
+                                                style="transform: scale({chartScale}) translateX({chartOffsetX}px);"
+                                                on:touchstart={(e) => handleTouchStart(e, weightData, 'weight')}
+                                                on:touchmove={(e) => handleTouchMove(e, weightData, 'weight')}
+                                                on:touchend={handleTouchEnd}
+                                            >
+                                                <!-- Grid background -->
+                                                <defs>
+                                                    <pattern id="weight-grid" width="40" height="15" patternUnits="userSpaceOnUse">
+                                                        <path d="M 40 0 L 0 0 0 15" fill="none" stroke="#f0f0f0" stroke-width="1"/>
+                                                    </pattern>
+                                                </defs>
+                                                <rect width="800" height="350" fill="url(#weight-grid)" />
+                                                
+                                                <!-- Weight line -->
+                                                {#if weightData.length > 1}
+                                                    {#each weightData as point, i}
+                                                        {#if i < weightData.length - 1}
+                                                            {@const nextPoint = weightData[i + 1]}
+                                                            <line
+                                                                x1={(i / (weightData.length - 1)) * 750 + 25}
+                                                                y1={280 - ((point.weight - minWeight) / weightRange) * 200}
+                                                                x2={((i + 1) / (weightData.length - 1)) * 750 + 25}
+                                                                y2={280 - ((nextPoint.weight - minWeight) / weightRange) * 200}
+                                                                stroke="#ff6b6b"
+                                                                stroke-width="4"
+                                                            />
+                                                        {/if}
+                                                    {/each}
+                                                {/if}
+                                                
+                                                <!-- Weight points -->
                                                 {#each weightData as point, i}
-                                                    {#if i < weightData.length - 1}
-                                                        {@const nextPoint = weightData[i + 1]}
-                                                        <line
-                                                            x1={(i / (weightData.length - 1)) * 750 + 25}
-                                                            y1={250 - ((point.weight - minWeight) / weightRange) * 200}
-                                                            x2={((i + 1) / (weightData.length - 1)) * 750 + 25}
-                                                            y2={250 - ((nextPoint.weight - minWeight) / weightRange) * 200}
-                                                            stroke="#ff6b6b"
-                                                            stroke-width="3"
-                                                        />
+                                                    <circle
+                                                        cx={(i / Math.max(weightData.length - 1, 1)) * 750 + 25}
+                                                        cy={280 - ((point.weight - minWeight) / weightRange) * 200}
+                                                        r="8"
+                                                        fill="#ff6b6b"
+                                                        stroke="#fff"
+                                                        stroke-width="3"
+                                                    />
+                                                    <!-- Value labels - larger for mobile -->
+                                                    <text
+                                                        x={(i / Math.max(weightData.length - 1, 1)) * 750 + 25}
+                                                        y={280 - ((point.weight - minWeight) / weightRange) * 200 - 20}
+                                                        text-anchor="middle"
+                                                        fill="#444"
+                                                        font-size="16"
+                                                        font-weight="bold"
+                                                        class="chart-label"
+                                                    >
+                                                        {point.weight.toFixed(2)}kg
+                                                    </text>
+                                                    <!-- Date labels for key points -->
+                                                    {#if i % Math.max(1, Math.floor(weightData.length / 4)) === 0 || i === weightData.length - 1}
+                                                        <text
+                                                            x={(i / Math.max(weightData.length - 1, 1)) * 750 + 25}
+                                                            y={320}
+                                                            text-anchor="middle"
+                                                            fill="#666"
+                                                            font-size="14"
+                                                            font-weight="normal"
+                                                            class="date-label"
+                                                        >
+                                                            {new Date(point.timestamp).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })}
+                                                        </text>
                                                     {/if}
                                                 {/each}
-                                            {/if}
-                                            
-                                            <!-- Weight points -->
-                                            {#each weightData as point, i}
-                                                <circle
-                                                    cx={(i / Math.max(weightData.length - 1, 1)) * 750 + 25}
-                                                    cy={250 - ((point.weight - minWeight) / weightRange) * 200}
-                                                    r="6"
-                                                    fill="#ff6b6b"
-                                                    stroke="#fff"
-                                                    stroke-width="2"
-                                                />
-                                                <!-- Value labels -->
-                                                <text
-                                                    x={(i / Math.max(weightData.length - 1, 1)) * 750 + 25}
-                                                    y={250 - ((point.weight - minWeight) / weightRange) * 200 - 15}
-                                                    text-anchor="middle"
-                                                    fill="#666"
-                                                    font-size="12"
-                                                    font-weight="bold"
-                                                >
-                                                    {point.weight.toFixed(2)}kg
-                                                </text>
-                                            {/each}
-                                        </svg>
+                                            </svg>
+                                        </div>
                                     </div>
                                 </div>
                             {/if}
@@ -358,59 +498,104 @@
                                 <div class="chart-section">
                                     <h3>Evolución de la Estatura</h3>
                                     <div class="chart-container">
-                                        <svg class="line-chart" viewBox="0 0 800 300">
-                                            <!-- Grid background -->
-                                            <defs>
-                                                <pattern id="height-grid" width="40" height="15" patternUnits="userSpaceOnUse">
-                                                    <path d="M 40 0 L 0 0 0 15" fill="none" stroke="#f0f0f0" stroke-width="1"/>
-                                                </pattern>
-                                            </defs>
-                                            <rect width="800" height="300" fill="url(#height-grid)" />
-                                            
-                                            <!-- Height line -->
-                                            {#if heightData.length > 1}
+                                        <div class="chart-wrapper">
+                                            <svg 
+                                                class="line-chart touch-chart" 
+                                                viewBox="0 0 800 350"
+                                                style="transform: scale({chartScale}) translateX({chartOffsetX}px);"
+                                                on:touchstart={(e) => handleTouchStart(e, heightData, 'height')}
+                                                on:touchmove={(e) => handleTouchMove(e, heightData, 'height')}
+                                                on:touchend={handleTouchEnd}
+                                            >
+                                                <!-- Grid background -->
+                                                <defs>
+                                                    <pattern id="height-grid" width="40" height="15" patternUnits="userSpaceOnUse">
+                                                        <path d="M 40 0 L 0 0 0 15" fill="none" stroke="#f0f0f0" stroke-width="1"/>
+                                                    </pattern>
+                                                </defs>
+                                                <rect width="800" height="350" fill="url(#height-grid)" />
+                                                
+                                                <!-- Height line -->
+                                                {#if heightData.length > 1}
+                                                    {#each heightData as point, i}
+                                                        {#if i < heightData.length - 1}
+                                                            {@const nextPoint = heightData[i + 1]}
+                                                            <line
+                                                                x1={(i / (heightData.length - 1)) * 750 + 25}
+                                                                y1={280 - ((point.height - minHeight) / heightRange) * 200}
+                                                                x2={((i + 1) / (heightData.length - 1)) * 750 + 25}
+                                                                y2={280 - ((nextPoint.height - minHeight) / heightRange) * 200}
+                                                                stroke="#4ecdc4"
+                                                                stroke-width="4"
+                                                            />
+                                                        {/if}
+                                                    {/each}
+                                                {/if}
+                                                
+                                                <!-- Height points -->
                                                 {#each heightData as point, i}
-                                                    {#if i < heightData.length - 1}
-                                                        {@const nextPoint = heightData[i + 1]}
-                                                        <line
-                                                            x1={(i / (heightData.length - 1)) * 750 + 25}
-                                                            y1={250 - ((point.height - minHeight) / heightRange) * 200}
-                                                            x2={((i + 1) / (heightData.length - 1)) * 750 + 25}
-                                                            y2={250 - ((nextPoint.height - minHeight) / heightRange) * 200}
-                                                            stroke="#4ecdc4"
-                                                            stroke-width="3"
-                                                        />
+                                                    <circle
+                                                        cx={(i / Math.max(heightData.length - 1, 1)) * 750 + 25}
+                                                        cy={280 - ((point.height - minHeight) / heightRange) * 200}
+                                                        r="8"
+                                                        fill="#4ecdc4"
+                                                        stroke="#fff"
+                                                        stroke-width="3"
+                                                    />
+                                                    <!-- Value labels - larger for mobile -->
+                                                    <text
+                                                        x={(i / Math.max(heightData.length - 1, 1)) * 750 + 25}
+                                                        y={280 - ((point.height - minHeight) / heightRange) * 200 - 20}
+                                                        text-anchor="middle"
+                                                        fill="#444"
+                                                        font-size="16"
+                                                        font-weight="bold"
+                                                        class="chart-label"
+                                                    >
+                                                        {point.height.toFixed(2)}cm
+                                                    </text>
+                                                    <!-- Date labels for key points -->
+                                                    {#if i % Math.max(1, Math.floor(heightData.length / 4)) === 0 || i === heightData.length - 1}
+                                                        <text
+                                                            x={(i / Math.max(heightData.length - 1, 1)) * 750 + 25}
+                                                            y={320}
+                                                            text-anchor="middle"
+                                                            fill="#666"
+                                                            font-size="14"
+                                                            font-weight="normal"
+                                                            class="date-label"
+                                                        >
+                                                            {new Date(point.timestamp).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })}
+                                                        </text>
                                                     {/if}
                                                 {/each}
-                                            {/if}
-                                            
-                                            <!-- Height points -->
-                                            {#each heightData as point, i}
-                                                <circle
-                                                    cx={(i / Math.max(heightData.length - 1, 1)) * 750 + 25}
-                                                    cy={250 - ((point.height - minHeight) / heightRange) * 200}
-                                                    r="6"
-                                                    fill="#4ecdc4"
-                                                    stroke="#fff"
-                                                    stroke-width="2"
-                                                />
-                                                <!-- Value labels -->
-                                                <text
-                                                    x={(i / Math.max(heightData.length - 1, 1)) * 750 + 25}
-                                                    y={250 - ((point.height - minHeight) / heightRange) * 200 - 15}
-                                                    text-anchor="middle"
-                                                    fill="#666"
-                                                    font-size="12"
-                                                    font-weight="bold"
-                                                >
-                                                    {point.height.toFixed(2)}cm
-                                                </text>
-                                            {/each}
-                                        </svg>
+                                            </svg>
+                                        </div>
                                     </div>
                                 </div>
                             {/if}
                         </div>
+                        
+                        <!-- Tooltip interactivo -->
+                        {#if activeTooltip}
+                            <div 
+                                class="chart-tooltip"
+                                style="left: {activeTooltip.x}px; top: {activeTooltip.y}px;"
+                            >
+                                <div class="tooltip-content">
+                                    <div class="tooltip-date">
+                                        {activeTooltip.data.formattedDate}
+                                    </div>
+                                    <div class="tooltip-value {activeTooltip.type}">
+                                        {#if activeTooltip.type === 'weight'}
+                                            {activeTooltip.data.weight?.toFixed(2)} kg
+                                        {:else}
+                                            {activeTooltip.data.height?.toFixed(2)} cm
+                                        {/if}
+                                    </div>
+                                </div>
+                            </div>
+                        {/if}
                     {:else}
                         <!-- Vista de tabla -->
                         <div class="growth-table">
@@ -672,6 +857,12 @@
         font-size: 1.25rem;
     }
 
+    .header-buttons {
+        display: flex;
+        align-items: center;
+        gap: var(--spacing-sm);
+    }
+
     .toggle-button {
         background: var(--primary);
         color: var(--white);
@@ -688,6 +879,27 @@
 
     .toggle-button:hover {
         background: var(--primary-dark);
+        transform: translateY(-1px);
+    }
+
+    .reset-zoom-button {
+        background: var(--gray);
+        color: var(--dark);
+        border: none;
+        border-radius: var(--radius-sm);
+        padding: var(--spacing-sm);
+        cursor: pointer;
+        font-size: 0.9rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.2s ease;
+        width: 36px;
+        height: 36px;
+    }
+
+    .reset-zoom-button:hover {
+        background: var(--gray-dark);
         transform: translateY(-1px);
     }
 
@@ -725,17 +937,108 @@
         font-weight: 600;
     }
 
+    .chart-instructions {
+        background: var(--background);
+        border: 1px solid var(--light);
+        border-radius: var(--radius-sm);
+        padding: var(--spacing-sm) var(--spacing-md);
+        margin-bottom: var(--spacing-md);
+        text-align: center;
+    }
+
+    .chart-instructions p {
+        margin: 0;
+        font-size: 0.85rem;
+        color: var(--gray-dark);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: var(--spacing-xs);
+    }
+
+    .chart-instructions i {
+        color: var(--primary);
+    }
+
     .chart-container {
         position: relative;
+        overflow: hidden;
+    }
+
+    .chart-wrapper {
+        width: 100%;
+        height: 350px;
+        position: relative;
+        overflow: hidden;
+        border-radius: var(--radius-sm);
+        border: 1px solid var(--light);
+        background: var(--white);
     }
 
     .line-chart {
         width: 100%;
-        height: auto;
-        max-height: 300px;
+        height: 100%;
         background: var(--white);
+        touch-action: none;
+        user-select: none;
+    }
+
+    .touch-chart {
+        cursor: grab;
+        transition: transform 0.1s ease-out;
+    }
+
+    .touch-chart:active {
+        cursor: grabbing;
+    }
+
+    /* Estilos para etiquetas del gráfico */
+    .chart-label {
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+        pointer-events: none;
+    }
+
+    .date-label {
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+        pointer-events: none;
+    }
+
+    /* Tooltip interactivo */
+    .chart-tooltip {
+        position: absolute;
+        z-index: 1000;
+        pointer-events: none;
+        transform: translate(-50%, -100%);
+    }
+
+    .tooltip-content {
+        background: var(--dark);
+        color: var(--white);
+        padding: var(--spacing-sm) var(--spacing-md);
         border-radius: var(--radius-sm);
-        border: 1px solid var(--light);
+        box-shadow: var(--shadow-lg);
+        font-size: 0.9rem;
+        text-align: center;
+        min-width: 120px;
+    }
+
+    .tooltip-date {
+        font-size: 0.8rem;
+        opacity: 0.8;
+        margin-bottom: var(--spacing-xs);
+    }
+
+    .tooltip-value {
+        font-weight: bold;
+        font-size: 1.1rem;
+    }
+
+    .tooltip-value.weight {
+        color: #ff6b6b;
+    }
+
+    .tooltip-value.height {
+        color: #4ecdc4;
     }
 
 
@@ -810,8 +1113,38 @@
             font-size: 1rem;
         }
         
-        .line-chart text {
-            font-size: 10px;
+        .chart-wrapper {
+            height: 300px;
+        }
+        
+        .chart-label {
+            font-size: 14px !important;
+        }
+        
+        .date-label {
+            font-size: 12px !important;
+        }
+        
+        .tooltip-content {
+            font-size: 0.8rem;
+            padding: var(--spacing-xs) var(--spacing-sm);
+            min-width: 100px;
+        }
+        
+        .tooltip-value {
+            font-size: 1rem;
+        }
+        
+        .chart-instructions p {
+            font-size: 0.8rem;
+            flex-direction: column;
+            gap: var(--spacing-xs);
+            line-height: 1.4;
+        }
+        
+        .header-buttons {
+            flex-direction: column;
+            gap: var(--spacing-xs);
         }
     }
 </style>
