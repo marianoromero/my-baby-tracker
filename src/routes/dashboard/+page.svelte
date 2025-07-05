@@ -103,6 +103,12 @@
     $: if ($user === null) {
       console.log('User is not authenticated')
     }
+    
+    // Handle missing recentActions functionality
+    async function loadRecentActions() {
+      // This function was referenced but not defined, implementing stub
+      console.log('Loading recent actions...')
+    }
 </script>
 
 {#if $familyLoading}

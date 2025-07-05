@@ -14,10 +14,15 @@ export const loading = writable(false)
 
 // Solo ejecutar en el cliente
 if (browser) {
+  let isInitialized = false
+  
   // Inicializar el store con la sesión actual
   supabase.auth.getSession().then(({ data: { session } }) => {
-    user.set(session?.user ?? null)
-    initializing.set(false)
+    if (!isInitialized) {
+      user.set(session?.user ?? null)
+      initializing.set(false)
+      isInitialized = true
+    }
   })
 
   // Escuchar cambios en la autenticación

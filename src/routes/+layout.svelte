@@ -18,6 +18,7 @@
   
     let hasInitialized = false
     let showSplash = true
+    let authSubscription = null
     
     onMount(() => {
       // Obtener la sesión inicial
@@ -29,17 +30,7 @@
         // Ocultar splash después de un tiempo mínimo
         setTimeout(() => {
           showSplash = false
-        }, 1500)
-        
-        // Manejar redirecciones solo en el cliente
-        const currentPath = $page.url.pathname
-        const isPublicRoute = publicRoutes.some(route => currentPath.startsWith(route))
-        
-        if (!session?.user && !isPublicRoute) {
-          goto(`${base}/auth`);
-        } else if (session?.user && currentPath === '/auth') {
-          goto(`${base}/dashboard`);
-        }
+        }, 1000)
       })
   
       // Escuchar cambios en la autenticación
@@ -48,14 +39,19 @@
         
         // Solo navegar en eventos específicos para evitar loops
         if (event === 'SIGNED_IN') {
-          goto(`${base}/dashboard`);
+          const currentPath = $page.url.pathname
+          if (currentPath === `${base}/auth` || currentPath === `${base}/`) {
+            goto(`${base}/dashboard`);
+          }
         } else if (event === 'SIGNED_OUT') {
           goto(`${base}/auth`);
         }
       })
   
+      authSubscription = subscription
+  
       return () => {
-        subscription?.unsubscribe()
+        authSubscription?.unsubscribe()
       }
     })
   

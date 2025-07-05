@@ -279,6 +279,7 @@ export async function joinFamilyWithCode(invitationCode) {
 
 let currentUserId = null
 let hasInitialized = false
+let initializationPromise = null
 
 // Suscribirse a cambios de la familia cuando el usuario cambie
 user.subscribe(async ($user) => {
@@ -289,14 +290,24 @@ user.subscribe(async ($user) => {
     currentUserId = newUserId
     hasInitialized = false
     
+    // Cancelar inicialización anterior si existe
+    if (initializationPromise) {
+      initializationPromise = null
+    }
+    
     if ($user) {
       console.log('Usuario cambió, inicializando familia para:', $user.id)
-      const result = await initializeFamily()
-      hasInitialized = true
-      
-      // Si el usuario necesita onboarding, esto se manejará en el layout
-      if (result?.needsOnboarding) {
-        console.log('Usuario necesita ir a onboarding')
+      // Prevenir múltiples inicializaciones simultáneas
+      if (!initializationPromise) {
+        initializationPromise = initializeFamily()
+        const result = await initializationPromise
+        hasInitialized = true
+        initializationPromise = null
+        
+        // Si el usuario necesita onboarding, esto se manejará en el layout
+        if (result?.needsOnboarding) {
+          console.log('Usuario necesita ir a onboarding')
+        }
       }
     } else {
       console.log('Usuario cerró sesión, limpiando datos')
@@ -305,6 +316,7 @@ user.subscribe(async ($user) => {
       actions.set({})
       familyLoading.set(false)
       hasInitialized = false
+      initializationPromise = null
     }
   }
 })
