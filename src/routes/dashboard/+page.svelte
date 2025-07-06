@@ -1,44 +1,11 @@
 <!-- src/routes/dashboard/+page.svelte -->
 <script>
     import { user, signOut } from '$lib/stores/auth'
-    import { family, familyLoading, subjects, actions } from '$lib/stores/family'
-    import { supabase } from '$lib/supabase'
+    import { family, familyLoading, subjects } from '$lib/stores/family'
     import { goto } from '$app/navigation'
     import { base } from '$app/paths'
     
-    let selectedSubject = null
-    let registering = false
     let menuOpen = false
-    
-    // Registrar un evento
-    async function registerEvent(subjectId, actionName) {
-      registering = true
-      
-      try {
-        // Registrar el evento
-        const { error } = await supabase
-          .from('events')
-          .insert({
-            subject_id: subjectId,
-            user_id: $user.id,
-            action_name: actionName,
-            event_timestamp: new Date().toISOString()
-          })
-        
-        if (error) throw error
-
-        // Recargar las acciones recientes
-        await loadRecentActions()
-
-        showNotification(`✅ ${actionName} registrado`)
-      } catch (err) {
-        console.error('Error:', err)
-        showNotification('❌ Error al registrar el evento')
-      } finally {
-        registering = false
-        selectedSubject = null
-      }
-    }
     
     // Copiar código de invitación
     async function copyInvitationCode() {
@@ -74,7 +41,6 @@
     }
 
     function navigateToTimeline() {
-      closeMenu()
       goto(`${base}/timeline?filter=today`)
     }
 
@@ -84,7 +50,6 @@
     }
 
     function navigateToStats() {
-      closeMenu()
       goto(`${base}/stats`)
     }
 
@@ -95,19 +60,6 @@
 
     function navigateToSubject(subjectId) {
       goto(`${base}/subject/${subjectId}`)
-    }
-
-
-
-    // Reactively handle user state changes
-    $: if ($user === null) {
-      console.log('User is not authenticated')
-    }
-    
-    // Handle missing recentActions functionality
-    async function loadRecentActions() {
-      // This function was referenced but not defined, implementing stub
-      console.log('Loading recent actions...')
     }
 </script>
 
@@ -128,34 +80,32 @@
 
     {#if $family}
     <main>
-      <!-- Secciones principales -->
-      <div class="main-sections">
+      <!-- Acceso rápido - 25% superior -->
+      <div class="quick-access">
+        <button class="quick-btn stats-btn" on:click={navigateToStats}>
+          <i class="fa-solid fa-chart-bar"></i>
+          <span>Stats</span>
+        </button>
+        <button class="quick-btn timeline-btn" on:click={navigateToTimeline}>
+          <i class="fa-solid fa-history"></i>
+          <span>Timeline</span>
+        </button>
+      </div>
+
+      <!-- Secciones de miembros - 75% inferior -->
+      <div class="members-sections">
         {#each $subjects as subject}
-          <div class="subject-section" style="background-color: {subject.color}">
-            <div class="subject-header" on:click={() => navigateToSubject(subject.id)}>
+          <button 
+            class="member-section" 
+            style="background-color: {subject.color}"
+            on:click={() => navigateToSubject(subject.id)}
+          >
+            <div class="member-content">
               <i class="fa-solid {subject.icon}"></i>
               <h2>{subject.name}</h2>
               <i class="fa-solid fa-chevron-right"></i>
             </div>
-            
-            <div class="actions-list">
-              {#if $actions[subject.id] && $actions[subject.id].length > 0}
-                {#each $actions[subject.id].slice(0, 3) as action}
-                  <button 
-                    class="action-btn"
-                    on:click={() => registerEvent(subject.id, action.name)}
-                    disabled={registering}
-                  >
-                    {action.name}
-                  </button>
-                {/each}
-              {:else}
-                <div class="action-placeholder"></div>
-                <div class="action-placeholder"></div>
-                <div class="action-placeholder"></div>
-              {/if}
-            </div>
-          </div>
+          </button>
         {/each}
       </div>
     </main>
@@ -292,111 +242,116 @@
     flex: 1;
     display: flex;
     flex-direction: column;
-    overflow-y: auto;
+    overflow: hidden;
   }
 
-  .main-sections {
+  /* Sección de acceso rápido - 25% superior */
+  .quick-access {
+    height: 25vh;
     display: flex;
-    flex-direction: column;
-    width: 100%;
-    height: 100%;
+    background: var(--white);
+    border-bottom: 2px solid var(--gray-light);
   }
 
-  .subject-section {
-    padding: var(--spacing-lg);
-    color: var(--white);
-    margin-bottom: 0;
-    width: 100%;
+  .quick-btn {
     flex: 1;
-    display: flex;
-    flex-direction: column;
-  }
-
-  .subject-header {
-    display: flex;
-    align-items: center;
-    gap: var(--spacing-md);
-    margin-bottom: var(--spacing-md);
+    border: none;
+    background: var(--gray-light);
+    color: var(--gray-dark);
+    font-size: 1.2rem;
+    font-weight: 600;
     cursor: pointer;
-    padding: var(--spacing-sm);
-    border-radius: var(--radius-sm);
-    transition: background-color 0.2s ease;
-  }
-
-  .subject-header:hover {
-    background: rgba(255, 255, 255, 0.1);
-  }
-
-  .subject-header i {
-    font-size: 2rem;
-  }
-
-  .subject-header h2 {
-    margin: 0;
-    font-size: 1.5rem;
-    flex: 1;
-  }
-
-  .subject-header .fa-chevron-right {
-    font-size: 1rem;
-    opacity: 0.7;
-  }
-
-  .actions-list {
+    transition: all 0.3s ease;
     display: flex;
     flex-direction: column;
+    align-items: center;
+    justify-content: center;
     gap: var(--spacing-sm);
-    width: 100%;
-    flex: 1;
+    position: relative;
   }
 
-  .action-btn {
-    padding: var(--spacing-md);
-    background: rgba(255, 255, 255, 0.2);
+  .quick-btn:first-child {
+    border-right: 1px solid var(--gray);
+  }
+
+  .quick-btn i {
+    font-size: 2.5rem;
+    margin-bottom: var(--spacing-xs);
+  }
+
+  .stats-btn {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: var(--white);
+  }
+
+  .timeline-btn {
+    background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+    color: var(--white);
+  }
+
+  .quick-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-lg);
+  }
+
+  .quick-btn:active {
+    transform: translateY(0);
+  }
+
+  /* Secciones de miembros - 75% inferior */
+  .members-sections {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    height: 75vh;
+  }
+
+  .member-section {
+    flex: 1;
     border: none;
     color: var(--white);
     cursor: pointer;
-    transition: background-color 0.2s ease;
-    font-size: 1.1rem;
-    font-weight: 500;
-    width: 100%;
-    flex: 1;
-    border-radius: var(--radius-sm);
+    transition: all 0.3s ease;
     display: flex;
     align-items: center;
     justify-content: center;
-    text-align: center;
-    word-wrap: break-word;
-    hyphens: auto;
+    position: relative;
+    overflow: hidden;
   }
 
-  .action-btn:hover:not(:disabled) {
-    background: rgba(255, 255, 255, 0.3);
+  .member-section:hover {
+    transform: scale(1.02);
+    box-shadow: inset 0 0 0 3px rgba(255, 255, 255, 0.3);
   }
 
-  .action-btn:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
+  .member-section:active {
+    transform: scale(0.98);
   }
 
-  .action-placeholder {
-    background: rgba(255, 255, 255, 0.1);
-    border-radius: var(--radius-sm);
+  .member-content {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-lg);
+    padding: var(--spacing-lg);
+    width: 100%;
+    justify-content: center;
+  }
+
+  .member-content i:first-child {
+    font-size: 3rem;
+  }
+
+  .member-content h2 {
+    margin: 0;
+    font-size: 2rem;
+    font-weight: 600;
     flex: 1;
-    height: 40px;
-    animation: pulse 1.5s ease-in-out infinite;
+    text-align: center;
   }
 
-  @keyframes pulse {
-    0% {
-      opacity: 0.3;
-    }
-    50% {
-      opacity: 0.6;
-    }
-    100% {
-      opacity: 0.3;
-    }
+  .member-content .fa-chevron-right {
+    font-size: 1.5rem;
+    opacity: 0.8;
   }
 
   /* Side Menu */
@@ -519,21 +474,29 @@
 
   /* Responsive */
   @media (max-width: 640px) {
-    .subject-section {
+    .quick-btn {
+      font-size: 1rem;
+    }
+
+    .quick-btn i {
+      font-size: 2rem;
+    }
+
+    .member-content {
+      gap: var(--spacing-md);
       padding: var(--spacing-md);
     }
 
-    .action-btn {
-      font-size: 1rem;
-      padding: var(--spacing-sm);
+    .member-content i:first-child {
+      font-size: 2.5rem;
     }
 
-    .subject-header h2 {
-      font-size: 1.3rem;
+    .member-content h2 {
+      font-size: 1.5rem;
     }
 
-    .subject-header i {
-      font-size: 1.8rem;
+    .member-content .fa-chevron-right {
+      font-size: 1.2rem;
     }
 
     :global(.notification) {
@@ -549,68 +512,82 @@
 
   /* Extra small screens */
   @media (max-width: 480px) {
-    .subject-section {
+    .quick-btn {
+      font-size: 0.9rem;
+    }
+
+    .quick-btn i {
+      font-size: 1.8rem;
+    }
+
+    .member-content {
+      gap: var(--spacing-sm);
       padding: var(--spacing-sm);
     }
 
-    .actions-list {
-      gap: var(--spacing-xs);
+    .member-content i:first-child {
+      font-size: 2rem;
     }
 
-    .action-btn {
-      font-size: 0.9rem;
-      padding: var(--spacing-xs);
+    .member-content h2 {
+      font-size: 1.3rem;
     }
 
-    .subject-header {
-      margin-bottom: var(--spacing-sm);
-    }
-
-    .subject-header h2 {
-      font-size: 1.2rem;
-    }
-
-    .subject-header i {
-      font-size: 1.6rem;
+    .member-content .fa-chevron-right {
+      font-size: 1rem;
     }
   }
 
   /* Height-based adjustments for compact layouts */
   @media (max-height: 700px) {
-    .subject-section {
-      padding: var(--spacing-md);
+    .quick-access {
+      height: 20vh;
     }
 
-    .action-btn {
-      font-size: 0.95rem;
-      padding: var(--spacing-xs);
+    .members-sections {
+      height: 80vh;
+    }
+
+    .quick-btn i {
+      font-size: 2rem;
+    }
+
+    .member-content i:first-child {
+      font-size: 2.5rem;
+    }
+
+    .member-content h2 {
+      font-size: 1.5rem;
     }
   }
 
   @media (max-height: 600px) {
-    .subject-section {
+    .quick-access {
+      height: 18vh;
+    }
+
+    .members-sections {
+      height: 82vh;
+    }
+
+    .quick-btn {
+      font-size: 1rem;
+    }
+
+    .quick-btn i {
+      font-size: 1.8rem;
+    }
+
+    .member-content {
       padding: var(--spacing-sm);
     }
 
-    .subject-header {
-      margin-bottom: var(--spacing-xs);
+    .member-content i:first-child {
+      font-size: 2rem;
     }
 
-    .subject-header h2 {
-      font-size: 1.1rem;
-    }
-
-    .subject-header i {
-      font-size: 1.4rem;
-    }
-
-    .actions-list {
-      gap: var(--spacing-xs);
-    }
-
-    .action-btn {
-      font-size: 0.85rem;
-      padding: var(--spacing-xs);
+    .member-content h2 {
+      font-size: 1.3rem;
     }
   }
 </style>
