@@ -174,6 +174,7 @@ async function loadSubjectsAndActions(familyId) {
       .from('actions')
       .select('*')
       .eq('subject_id', subject.id)
+      .order('sort_order', { ascending: true, nullsFirst: false })
       .order('name')
 
     console.log(`Actions for ${subject.name}:`, { actionsData, actionsError })

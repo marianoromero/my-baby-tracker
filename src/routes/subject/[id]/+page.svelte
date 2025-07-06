@@ -24,6 +24,12 @@
     let actionToEdit = null
     let editActionName = ''
 
+    // Variables para drag and drop
+    let draggedItem = null
+    let draggedOverItem = null
+    let isDragging = false
+    let dragStartY = 0
+
     // Variables para modal de biberón
     let showBottleModal = false
     let selectedBottleAction = null
@@ -50,17 +56,23 @@
         const subjectId = $page.params.id
         subject = $subjects.find(s => s.id === subjectId)
         if (subject && $actions[subjectId]) {
-            // Obtener las 10 acciones más recientes
-            const recentActions = $actions[subjectId]
-                .sort((a, b) => b.last_used - a.last_used)
-                .slice(0, 10)
-            
-            // Obtener el resto de acciones ordenadas alfabéticamente
-            const otherActions = $actions[subjectId]
-                .filter(a => !recentActions.includes(a))
-                .sort((a, b) => a.name.localeCompare(b.name))
-            
-            subjectActions = [...recentActions, ...otherActions]
+            // Ordenar por sort_order primero, luego por más recientes, luego alfabéticamente
+            subjectActions = $actions[subjectId]
+                .slice()
+                .sort((a, b) => {
+                    // Si ambas tienen sort_order, ordenar por eso
+                    if (a.sort_order !== undefined && b.sort_order !== undefined) {
+                        return a.sort_order - b.sort_order
+                    }
+                    // Si solo una tiene sort_order, esa va primero
+                    if (a.sort_order !== undefined) return -1
+                    if (b.sort_order !== undefined) return 1
+                    // Si ninguna tiene sort_order, ordenar por fecha de último uso, luego alfabéticamente
+                    if (a.last_used && b.last_used) {
+                        return b.last_used - a.last_used
+                    }
+                    return a.name.localeCompare(b.name)
+                })
         }
     }
     
@@ -163,12 +175,16 @@
         if (!newActionName.trim()) return
         
         try {
+            // Obtener el próximo sort_order (mayor que el existente)
+            const maxSortOrder = Math.max(...subjectActions.map(a => a.sort_order || 0), -1)
+            
             // Primero insertamos la acción
             const { data: newAction, error: insertError } = await supabase
                 .from('actions')
                 .insert({
                     subject_id: subject.id,
-                    name: newActionName.trim()
+                    name: newActionName.trim(),
+                    sort_order: maxSortOrder + 1
                 })
                 .select()
                 .single()
@@ -238,7 +254,7 @@
     }
     
     // Funciones para manejar swipe-to-delete
-    function handleTouchStart(event, actionData) {
+    function handleSwipeStart(event, actionData) {
         const touch = event.touches[0]
         swipeData.set(actionData.id, {
             startX: touch.clientX,
@@ -249,7 +265,7 @@
         })
     }
     
-    function handleTouchMove(event, actionData) {
+    function handleSwipeMove(event, actionData) {
         const touch = event.touches[0]
         const data = swipeData.get(actionData.id)
         
@@ -268,7 +284,7 @@
         }
     }
     
-    function handleTouchEnd(event, actionData) {
+    function handleSwipeEnd(event, actionData) {
         const data = swipeData.get(actionData.id)
         
         if (!data) return
@@ -493,6 +509,137 @@
         selectedHeightAction = null
         // No resetear los valores para mantener la última estatura
     }
+
+    // Funciones para drag and drop
+    function handleDragStart(event, action) {
+        if (event.type === 'touchstart') {
+            // Para mobile: guardar posición inicial del touch
+            const touch = event.touches[0]
+            dragStartY = touch.clientY
+            draggedItem = action
+            
+            // Pequeño delay para distinguir entre tap y drag
+            setTimeout(() => {
+                if (draggedItem === action) {
+                    isDragging = true
+                    event.target.classList.add('dragging')
+                }
+            }, 150)
+        } else {
+            // Para desktop: drag estándar
+            draggedItem = action
+            isDragging = true
+            event.dataTransfer.effectAllowed = 'move'
+            event.dataTransfer.setData('text/html', event.target.outerHTML)
+            event.target.classList.add('dragging')
+        }
+    }
+
+    function handleDragOver(event, action) {
+        if (!isDragging || !draggedItem) return
+        
+        event.preventDefault()
+        
+        if (event.type === 'touchmove') {
+            const touch = event.touches[0]
+            const elementBelow = document.elementFromPoint(touch.clientX, touch.clientY)
+            const actionElement = elementBelow?.closest('.action-wrapper')
+            
+            if (actionElement) {
+                const actionId = actionElement.dataset.actionId
+                const targetAction = subjectActions.find(a => a.id === actionId)
+                if (targetAction && targetAction.id !== draggedItem.id) {
+                    draggedOverItem = targetAction
+                }
+            }
+        } else {
+            if (action.id !== draggedItem.id) {
+                draggedOverItem = action
+            }
+        }
+    }
+
+    function handleDragEnd(event) {
+        if (!isDragging || !draggedItem) return
+        
+        event.target.classList.remove('dragging')
+        
+        if (draggedOverItem && draggedItem.id !== draggedOverItem.id) {
+            reorderActions(draggedItem, draggedOverItem)
+        }
+        
+        // Reset drag state
+        draggedItem = null
+        draggedOverItem = null
+        isDragging = false
+        dragStartY = 0
+    }
+
+    function handleTouchMove(event, action) {
+        if (!draggedItem) return
+        
+        const touch = event.touches[0]
+        const currentY = touch.clientY
+        
+        // Si se movió suficiente verticalmente, considerarlo un drag
+        if (Math.abs(currentY - dragStartY) > 10) {
+            isDragging = true
+            event.target.classList.add('dragging')
+            handleDragOver(event, action)
+        }
+    }
+
+    function handleTouchEnd(event, action) {
+        if (isDragging) {
+            handleDragEnd(event)
+        } else {
+            // Si no era un drag, ejecutar la acción normal
+            draggedItem = null
+        }
+    }
+
+    // Reordenar acciones y actualizar base de datos
+    async function reorderActions(draggedAction, targetAction) {
+        try {
+            // Encontrar índices actuales
+            const draggedIndex = subjectActions.findIndex(a => a.id === draggedAction.id)
+            const targetIndex = subjectActions.findIndex(a => a.id === targetAction.id)
+            
+            if (draggedIndex === -1 || targetIndex === -1) return
+            
+            // Crear nueva lista reordenada
+            const newOrder = [...subjectActions]
+            newOrder.splice(draggedIndex, 1)
+            newOrder.splice(targetIndex, 0, draggedAction)
+            
+            // Asignar nuevos sort_order
+            const updatePromises = newOrder.map((action, index) => {
+                return supabase
+                    .from('actions')
+                    .update({ sort_order: index })
+                    .eq('id', action.id)
+            })
+            
+            // Ejecutar todas las actualizaciones
+            await Promise.all(updatePromises)
+            
+            // Actualizar el store local
+            const updatedActions = { ...$actions }
+            if (updatedActions[subject.id]) {
+                updatedActions[subject.id] = newOrder.map((action, index) => ({
+                    ...action,
+                    sort_order: index
+                }))
+            }
+            actions.set(updatedActions)
+            
+            showNotification('✅ Orden actualizado')
+            
+        } catch (error) {
+            console.error('Error al reordenar acciones:', error)
+            showNotification('❌ Error al actualizar orden')
+        }
+    }
 </script>
 
 <div class="container">
@@ -504,9 +651,28 @@
     </header>
 
     <main>
-        <div class="actions-list">
-            {#each subjectActions as action}
-                <div class="action-wrapper" class:swiped={swipeData.get(action.id)?.revealed}>
+        <div class="actions-list" role="list">
+            {#each subjectActions as action, index}
+                <div 
+                    class="action-wrapper" 
+                    class:swiped={swipeData.get(action.id)?.revealed}
+                    class:drag-over={draggedOverItem?.id === action.id}
+                    class:dragging={draggedItem?.id === action.id}
+                    data-action-id={action.id}
+                    draggable="true"
+                    role="listitem"
+                    on:dragstart={(e) => handleDragStart(e, action)}
+                    on:dragover={(e) => handleDragOver(e, action)}
+                    on:dragend={handleDragEnd}
+                    on:touchstart={(e) => handleDragStart(e, action)}
+                    on:touchmove={(e) => handleTouchMove(e, action)}
+                    on:touchend={(e) => handleTouchEnd(e, action)}
+                >
+                    <!-- Indicador de drag -->
+                    <div class="drag-handle">
+                        <i class="fa-solid fa-grip-vertical"></i>
+                    </div>
+                    
                     <!-- Botones de acción (background) -->
                     <div class="actions-background">
                         <button 
@@ -529,12 +695,10 @@
                     <button 
                         class="action-btn"
                         class:swiping={swipeData.get(action.id)?.isSwiping}
+                        class:dragging={draggedItem?.id === action.id}
                         style="background-color: {subject?.color}33; color: {subject?.color}; transform: translateX({swipeData.get(action.id)?.deltaX || 0}px);"
-                        on:click={() => registerEvent(action.name)}
-                        on:touchstart={(e) => handleTouchStart(e, action)}
-                        on:touchmove={(e) => handleTouchMove(e, action)}
-                        on:touchend={(e) => handleTouchEnd(e, action)}
-                        disabled={registering}
+                        on:click={() => !isDragging && registerEvent(action.name)}
+                        disabled={registering || isDragging}
                     >
                         {action.name}
                     </button>
@@ -888,10 +1052,74 @@
         gap: var(--spacing-sm);
     }
 
-    /* Swipe to delete */
+    /* Action wrapper with drag and swipe support */
     .action-wrapper {
         position: relative;
         overflow: hidden;
+        display: flex;
+        align-items: center;
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+        user-select: none;
+    }
+
+    .action-wrapper:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    }
+
+    .action-wrapper.drag-over {
+        border-top: 3px solid var(--primary);
+        background-color: rgba(68, 129, 153, 0.1);
+    }
+
+    .action-wrapper.dragging,
+    .action-btn.dragging {
+        opacity: 0.5;
+        transform: rotate(2deg);
+        box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+    }
+
+    /* Drag handle */
+    .drag-handle {
+        position: absolute;
+        left: 0;
+        top: 0;
+        bottom: 0;
+        width: 30px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--gray);
+        background: rgba(255, 255, 255, 0.8);
+        cursor: grab;
+        transition: all 0.2s ease;
+        z-index: 5;
+        opacity: 0;
+    }
+
+    .drag-handle:active {
+        cursor: grabbing;
+    }
+
+    .action-wrapper:hover .drag-handle {
+        opacity: 1;
+    }
+
+    .drag-handle i {
+        font-size: 0.8rem;
+        pointer-events: none;
+    }
+
+    /* Mobile: Always show drag handle */
+    @media (max-width: 768px) {
+        .drag-handle {
+            opacity: 0.6;
+            width: 25px;
+        }
+        
+        .action-wrapper:hover .drag-handle {
+            opacity: 1;
+        }
     }
     
     .actions-background {
@@ -989,6 +1217,7 @@
 
     .action-btn {
         padding: var(--spacing-lg);
+        padding-left: 50px; /* Espacio para el drag handle */
         border: none;
         cursor: pointer;
         transition: transform 0.3s ease, opacity 0.2s ease;
@@ -998,8 +1227,20 @@
         position: relative;
         z-index: 2;
         width: 100%;
-        touch-action: pan-y; /* Permitir scroll vertical */
+        touch-action: manipulation; /* Mejor para drag and touch */
         background: var(--white); /* Asegurar que tenga fondo */
+    }
+
+    .action-btn.dragging {
+        cursor: grabbing;
+        pointer-events: none;
+    }
+
+    /* Mobile: Menos padding para el drag handle */
+    @media (max-width: 768px) {
+        .action-btn {
+            padding-left: 40px;
+        }
     }
     
     .action-btn.swiping {
