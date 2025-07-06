@@ -2,10 +2,82 @@
 <script>
     import { user, signOut } from '$lib/stores/auth'
     import { family, familyLoading, subjects } from '$lib/stores/family'
+    import { supabase } from '$lib/supabase'
     import { goto } from '$app/navigation'
     import { base } from '$app/paths'
+    import { onMount } from 'svelte'
     
     let menuOpen = false
+    let lastActions = {} // Para almacenar las últimas acciones por sujeto
+    
+    // Cargar última acción para cada sujeto
+    async function loadLastActions() {
+      if (!$subjects || $subjects.length === 0) return
+      
+      const lastActionsMap = {}
+      
+      for (const subject of $subjects) {
+        try {
+          const { data, error } = await supabase
+            .from('events')
+            .select('action_name, event_timestamp')
+            .eq('subject_id', subject.id)
+            .order('event_timestamp', { ascending: false })
+            .limit(1)
+          
+          if (!error && data && data.length > 0) {
+            lastActionsMap[subject.id] = {
+              action: data[0].action_name,
+              timestamp: data[0].event_timestamp
+            }
+          }
+        } catch (err) {
+          console.error('Error loading last action for subject:', subject.id, err)
+        }
+      }
+      
+      lastActions = lastActionsMap
+    }
+    
+    // Formatear fecha y hora
+    function formatDateTime(timestamp) {
+      if (!timestamp) return ''
+      
+      const eventDate = new Date(timestamp)
+      const now = new Date()
+      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+      const yesterday = new Date(today.getTime() - 24 * 60 * 60 * 1000)
+      const eventDateOnly = new Date(eventDate.getFullYear(), eventDate.getMonth(), eventDate.getDate())
+      
+      const timeString = eventDate.toLocaleTimeString('es-ES', { 
+        hour: '2-digit', 
+        minute: '2-digit',
+        hour12: false
+      })
+      
+      if (eventDateOnly.getTime() === today.getTime()) {
+        return `Hoy ${timeString}`
+      } else if (eventDateOnly.getTime() === yesterday.getTime()) {
+        return `Ayer ${timeString}`
+      } else {
+        const dayMonth = eventDate.toLocaleDateString('es-ES', {
+          day: '2-digit',
+          month: '2-digit'
+        })
+        return `${dayMonth} ${timeString}`
+      }
+    }
+    
+    // Cargar última acción cuando cambien los sujetos
+    $: if ($subjects && $subjects.length > 0) {
+      loadLastActions()
+    }
+    
+    onMount(() => {
+      if ($subjects && $subjects.length > 0) {
+        loadLastActions()
+      }
+    })
     
     // Copiar código de invitación
     async function copyInvitationCode() {
@@ -102,7 +174,13 @@
           >
             <div class="member-content">
               <i class="fa-solid {subject.icon}"></i>
-              <h2>{subject.name}</h2>
+              <div class="member-info">
+                <h2>{subject.name}</h2>
+                {#if lastActions[subject.id]}
+                  <p class="last-action">{lastActions[subject.id].action}</p>
+                  <p class="last-datetime">{formatDateTime(lastActions[subject.id].timestamp)}</p>
+                {/if}
+              </div>
               <i class="fa-solid fa-chevron-right"></i>
             </div>
           </button>
@@ -250,7 +328,6 @@
     height: 25vh;
     display: flex;
     background: var(--white);
-    border-bottom: 2px solid var(--gray-light);
   }
 
   .quick-btn {
@@ -268,11 +345,9 @@
     justify-content: center;
     gap: var(--spacing-sm);
     position: relative;
+    margin: 0;
   }
 
-  .quick-btn:first-child {
-    border-right: 1px solid var(--gray);
-  }
 
   .quick-btn i {
     font-size: 2.5rem;
@@ -339,19 +414,43 @@
 
   .member-content i:first-child {
     font-size: 3rem;
+    flex-shrink: 0;
   }
 
-  .member-content h2 {
+  .member-info {
+    flex: 1;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-xs);
+  }
+
+  .member-info h2 {
     margin: 0;
     font-size: 2rem;
     font-weight: 600;
-    flex: 1;
-    text-align: center;
+  }
+
+  .last-action {
+    margin: 0;
+    font-size: 0.9rem;
+    opacity: 0.85;
+    font-weight: 400;
+    line-height: 1.2;
+  }
+
+  .last-datetime {
+    margin: 0;
+    font-size: 0.8rem;
+    opacity: 0.7;
+    font-weight: 300;
+    line-height: 1.1;
   }
 
   .member-content .fa-chevron-right {
     font-size: 1.5rem;
     opacity: 0.8;
+    flex-shrink: 0;
   }
 
   /* Side Menu */
@@ -491,8 +590,16 @@
       font-size: 2.5rem;
     }
 
-    .member-content h2 {
+    .member-info h2 {
       font-size: 1.5rem;
+    }
+
+    .last-action {
+      font-size: 0.8rem;
+    }
+
+    .last-datetime {
+      font-size: 0.7rem;
     }
 
     .member-content .fa-chevron-right {
@@ -529,8 +636,16 @@
       font-size: 2rem;
     }
 
-    .member-content h2 {
+    .member-info h2 {
       font-size: 1.3rem;
+    }
+
+    .last-action {
+      font-size: 0.75rem;
+    }
+
+    .last-datetime {
+      font-size: 0.65rem;
     }
 
     .member-content .fa-chevron-right {
@@ -556,8 +671,16 @@
       font-size: 2.5rem;
     }
 
-    .member-content h2 {
+    .member-info h2 {
       font-size: 1.5rem;
+    }
+
+    .last-action {
+      font-size: 0.8rem;
+    }
+
+    .last-datetime {
+      font-size: 0.7rem;
     }
   }
 
@@ -586,8 +709,16 @@
       font-size: 2rem;
     }
 
-    .member-content h2 {
+    .member-info h2 {
       font-size: 1.3rem;
+    }
+
+    .last-action {
+      font-size: 0.75rem;
+    }
+
+    .last-datetime {
+      font-size: 0.65rem;
     }
   }
 </style>
