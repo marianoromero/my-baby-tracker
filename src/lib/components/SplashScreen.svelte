@@ -18,23 +18,24 @@
   onMount(() => {
     let currentStep = 0
     let currentProgress = 0
+    let animationId = null
     
     const animateProgress = () => {
-      if (currentStep < loadingSteps.length) {
+      if (currentStep < loadingSteps.length && show) {
         const step = loadingSteps[currentStep]
         loadingText = step.text
         
         const targetProgress = ((currentStep + 1) / loadingSteps.length) * 100
         
         const animateToTarget = () => {
-          if (currentProgress < targetProgress) {
+          if (currentProgress < targetProgress && show) {
             currentProgress += 2
             progress = Math.min(currentProgress, targetProgress)
-            requestAnimationFrame(animateToTarget)
+            animationId = requestAnimationFrame(animateToTarget)
           } else {
             setTimeout(() => {
               currentStep++
-              if (currentStep < loadingSteps.length) {
+              if (currentStep < loadingSteps.length && show) {
                 animateProgress()
               } else {
                 // Completado - esperar un momento antes de ocultar
@@ -51,7 +52,15 @@
     }
     
     // Empezar la animación después de un pequeño delay
-    setTimeout(animateProgress, 200)
+    const startTimeout = setTimeout(animateProgress, 200)
+    
+    // Limpiar timeout y animación si el componente se desmonta
+    return () => {
+      clearTimeout(startTimeout)
+      if (animationId) {
+        cancelAnimationFrame(animationId)
+      }
+    }
   })
 </script>
 

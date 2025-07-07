@@ -37,18 +37,69 @@
     let showSplash = true
     let authSubscription = null
     
+    // Timeout de emergencia para evitar que la app se quede bloqueada
+    let emergencyTimeout = null
+    
     onMount(() => {
-      // Obtener la sesión inicial
-      supabase.auth.getSession().then(({ data: { session } }) => {
-        user.set(session?.user ?? null)
-        initializing.set(false)
-        hasInitialized = true
-        
-        // Ocultar splash después de un tiempo mínimo
+      console.log('Layout onMount - hasInitialized:', hasInitialized)
+      
+      // Timeout de emergencia - si después de 5 segundos no se ha inicializado, forzar continuar
+      emergencyTimeout = setTimeout(() => {
+        console.log('Emergency timeout - forcing initialization')
+        if (!hasInitialized) {
+          initializing.set(false)
+          hasInitialized = true
+        }
+        showSplash = false
+      }, 5000)
+      
+      // Solo inicializar si no está ya inicializado
+      if (!hasInitialized) {
+        console.log('Starting auth initialization...')
+        // Obtener la sesión inicial
+        supabase.auth.getSession().then(({ data: { session } }) => {
+          console.log('Auth session obtained:', !!session?.user)
+          user.set(session?.user ?? null)
+          initializing.set(false)
+          hasInitialized = true
+          
+          // Limpiar timeout de emergencia
+          if (emergencyTimeout) {
+            clearTimeout(emergencyTimeout)
+            emergencyTimeout = null
+          }
+          
+          // Ocultar splash después de un tiempo mínimo
+          setTimeout(() => {
+            showSplash = false
+          }, 1500)
+        }).catch((error) => {
+          console.error('Error getting session:', error)
+          // En caso de error, aún permitir continuar
+          initializing.set(false)
+          hasInitialized = true
+          
+          // Limpiar timeout de emergencia
+          if (emergencyTimeout) {
+            clearTimeout(emergencyTimeout)
+            emergencyTimeout = null
+          }
+          
+          setTimeout(() => {
+            showSplash = false
+          }, 1500)
+        })
+      } else {
+        console.log('Already initialized, hiding splash quickly')
+        // Si ya está inicializado, ocultar splash inmediatamente
+        if (emergencyTimeout) {
+          clearTimeout(emergencyTimeout)
+          emergencyTimeout = null
+        }
         setTimeout(() => {
           showSplash = false
         }, 1000)
-      })
+      }
   
       // Escuchar cambios en la autenticación
       const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
@@ -69,11 +120,24 @@
   
       return () => {
         authSubscription?.unsubscribe()
+        if (emergencyTimeout) {
+          clearTimeout(emergencyTimeout)
+          emergencyTimeout = null
+        }
       }
     })
   
     // Manejar redirecciones reactivas solo después de la inicialización
-    $: if (browser && !$initializing && !$familyLoading && hasInitialized) {
+    $: if (browser && !$initializing && hasInitialized) {
+      console.log('Reactive navigation check:', {
+        initializing: $initializing,
+        familyLoading: $familyLoading,
+        hasInitialized,
+        user: !!$user,
+        family: !!$family,
+        currentPath: $page.url.pathname
+      })
+      
       const currentPath = $page.url.pathname
       const isPublicRoute = publicRoutes.some(route => currentPath.startsWith(route))
       
@@ -81,14 +145,17 @@
         // Usuario autenticado
         if (!$family && currentPath !== `${base}/onboarding`) {
           // Usuario sin familia - redirigir a onboarding
+          console.log('Redirecting to onboarding (no family)')
           goto(`${base}/onboarding`);
         } else if ($family && currentPath === `${base}/onboarding`) {
           // Usuario con familia en onboarding - redirigir a dashboard
+          console.log('Redirecting to dashboard (has family)')
           goto(`${base}/dashboard`);
         }
       } else {
         // Usuario no autenticado - redirigir a auth
         if (!isPublicRoute && currentPath !== `${base}/auth`) {
+          console.log('Redirecting to auth (no user)')
           goto(`${base}/auth`);
         }
       }

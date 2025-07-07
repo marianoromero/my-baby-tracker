@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Debug Mobile - Baby Tracker</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .debug-container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            max-width: 600px;
+            margin: 0 auto;
+        }
+        .log {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            padding: 10px;
+            margin: 10px 0;
+            font-family: monospace;
+            white-space: pre-wrap;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        .button:hover {
+            background: #0056b3;
+        }
+        .status {
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        .status.loading {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            color: #856404;
+        }
+        .status.success {
+            background: #d1edff;
+            border: 1px solid #bee5eb;
+            color: #0c5460;
+        }
+        .status.error {
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+        }
+    </style>
+</head>
+<body>
+    <div class="debug-container">
+        <h1>🐛 Debug Mobile Loading - Baby Tracker</h1>
+        
+        <div id="status" class="status loading">
+            🔄 Inicializando debug...
+        </div>
+        
+        <div>
+            <button class="button" onclick="testLocalStorage()">Test LocalStorage</button>
+            <button class="button" onclick="testSupabase()">Test Supabase Connection</button>
+            <button class="button" onclick="redirectToApp()">Ir a la App</button>
+            <button class="button" onclick="clearLogs()">Limpiar Logs</button>
+        </div>
+        
+        <h3>📋 Console Logs:</h3>
+        <div id="logs" class="log">Esperando logs...\n</div>
+        
+        <h3>📱 Device Info:</h3>
+        <div id="deviceInfo" class="log"></div>
+        
+        <h3>🌐 Network Info:</h3>
+        <div id="networkInfo" class="log"></div>
+    </div>
+
+    <script>
+        // Capturar logs de consola
+        const originalLog = console.log;
+        const originalError = console.error;
+        const originalWarn = console.warn;
+        
+        const logsDiv = document.getElementById('logs');
+        
+        function addLog(type, ...args) {
+            const timestamp = new Date().toLocaleTimeString();
+            const message = args.map(arg => 
+                typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)
+            ).join(' ');
+            
+            logsDiv.textContent += `[${timestamp}] ${type.toUpperCase()}: ${message}\n`;
+            logsDiv.scrollTop = logsDiv.scrollHeight;
+        }
+        
+        console.log = function(...args) {
+            addLog('log', ...args);
+            originalLog.apply(console, args);
+        };
+        
+        console.error = function(...args) {
+            addLog('error', ...args);
+            originalError.apply(console, args);
+        };
+        
+        console.warn = function(...args) {
+            addLog('warn', ...args);
+            originalWarn.apply(console, args);
+        };
+        
+        // Capturar errores no manejados
+        window.addEventListener('error', (e) => {
+            addLog('error', `Unhandled error: ${e.message} at ${e.filename}:${e.lineno}`);
+        });
+        
+        window.addEventListener('unhandledrejection', (e) => {
+            addLog('error', `Unhandled promise rejection: ${e.reason}`);
+        });
+        
+        // Mostrar información del dispositivo
+        function showDeviceInfo() {
+            const info = {
+                userAgent: navigator.userAgent,
+                platform: navigator.platform,
+                language: navigator.language,
+                cookieEnabled: navigator.cookieEnabled,
+                onLine: navigator.onLine,
+                screenSize: `${screen.width}x${screen.height}`,
+                viewportSize: `${window.innerWidth}x${window.innerHeight}`,
+                devicePixelRatio: window.devicePixelRatio,
+                localStorage: typeof Storage !== "undefined",
+                sessionStorage: typeof Storage !== "undefined",
+                indexedDB: typeof indexedDB !== "undefined"
+            };
+            
+            document.getElementById('deviceInfo').textContent = JSON.stringify(info, null, 2);
+        }
+        
+        // Mostrar información de red
+        function showNetworkInfo() {
+            const info = {
+                onLine: navigator.onLine,
+                connection: navigator.connection ? {
+                    effectiveType: navigator.connection.effectiveType,
+                    downlink: navigator.connection.downlink,
+                    rtt: navigator.connection.rtt
+                } : 'No disponible'
+            };
+            
+            document.getElementById('networkInfo').textContent = JSON.stringify(info, null, 2);
+        }
+        
+        // Funciones de test
+        function testLocalStorage() {
+            try {
+                localStorage.setItem('test', 'value');
+                const value = localStorage.getItem('test');
+                localStorage.removeItem('test');
+                console.log('✅ LocalStorage funcionando correctamente');
+                updateStatus('success', '✅ LocalStorage OK');
+            } catch (e) {
+                console.error('❌ Error en LocalStorage:', e);
+                updateStatus('error', '❌ LocalStorage Error');
+            }
+        }
+        
+        async function testSupabase() {
+            updateStatus('loading', '🔄 Probando conexión a Supabase...');
+            
+            try {
+                // Simular conexión a Supabase
+                const response = await fetch('https://httpbin.org/get');
+                if (response.ok) {
+                    console.log('✅ Conexión de red OK');
+                    updateStatus('success', '✅ Red OK - Supabase debería funcionar');
+                } else {
+                    console.error('❌ Error de red');
+                    updateStatus('error', '❌ Error de red');
+                }
+            } catch (e) {
+                console.error('❌ Error de conexión:', e);
+                updateStatus('error', '❌ Sin conexión a internet');
+            }
+        }
+        
+        function redirectToApp() {
+            console.log('🔄 Redirigiendo a la app...');
+            window.location.href = '/my-baby-tracker/';
+        }
+        
+        function clearLogs() {
+            logsDiv.textContent = 'Logs limpiados...\n';
+        }
+        
+        function updateStatus(type, message) {
+            const statusDiv = document.getElementById('status');
+            statusDiv.className = `status ${type}`;
+            statusDiv.textContent = message;
+        }
+        
+        // Inicializar
+        document.addEventListener('DOMContentLoaded', () => {
+            console.log('🚀 Debug page loaded');
+            showDeviceInfo();
+            showNetworkInfo();
+            updateStatus('success', '✅ Debug page ready');
+        });
+    </script>
+</body>
+</html>
