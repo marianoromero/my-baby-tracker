@@ -35,12 +35,36 @@
         : await signUp(email, password, invitationCode || null)
   
       if (authError) {
-        error = authError.message
+        // Mejorar los mensajes de error para el usuario
+        if (isLogin && authError.message.includes('Invalid login credentials')) {
+          error = 'Email o contraseña incorrectos. ¿Quizás necesitas crear una cuenta primero?'
+        } else if (isLogin && authError.message.includes('Email not confirmed')) {
+          error = 'Por favor confirma tu email antes de iniciar sesión. Revisa tu bandeja de entrada.'
+        } else if (!isLogin && authError.message.includes('User already registered')) {
+          error = 'Este email ya está registrado. ¿Quieres iniciar sesión en su lugar?'
+        } else {
+          error = authError.message
+        }
       } else if (isLogin && data?.user) {
+        // Verificar si el email está confirmado
+        if (!data.user.email_confirmed_at) {
+          error = 'Por favor confirma tu email antes de continuar. Revisa tu bandeja de entrada.'
+          return
+        }
         // Redirigir al dashboard después del login exitoso
         goto(`${base}/dashboard`)
-      } else if (!isLogin) {
-        successMessage = 'Cuenta creada. Revisa tu email para confirmar.'
+      } else if (!isLogin && data?.user) {
+        // Mensaje más claro después de crear cuenta
+        if (data.user && !data.user.email_confirmed_at) {
+          successMessage = '✅ Cuenta creada exitosamente! Te hemos enviado un email de confirmación. Por favor revisa tu bandeja de entrada y haz clic en el enlace de confirmación antes de iniciar sesión.'
+          // Cambiar automáticamente a modo login después de crear cuenta
+          setTimeout(() => {
+            isLogin = true
+            successMessage = 'Ahora puedes iniciar sesión una vez que hayas confirmado tu email.'
+          }, 5000)
+        } else {
+          successMessage = 'Cuenta creada y confirmada. ¡Ya puedes iniciar sesión!'
+        }
       }
     }
   
@@ -148,6 +172,10 @@
             isLogin = !isLogin
             error = null
             successMessage = null
+            // Limpiar campos al cambiar de modo
+            email = ''
+            password = ''
+            invitationCode = ''
           }}
         >
           {isLogin ? 'Crear cuenta' : 'Iniciar sesión'}

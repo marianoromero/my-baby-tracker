@@ -5,6 +5,12 @@
   import { user } from '$lib/stores/auth'
   import { supabase } from '$lib/supabase'
   import { family, initializeFamily } from '$lib/stores/family'
+  import { onMount } from 'svelte'
+  
+  onMount(() => {
+    console.log('Onboarding mounted. Family store value:', $family)
+    console.log('User:', $user)
+  })
   
   let step = 'choose' // 'choose' | 'join' | 'create'
   let familyCode = ''
@@ -15,6 +21,7 @@
 
   // Redirigir si ya tiene familia
   $: if ($family) {
+    console.log('Familia detectada en store, redirigiendo:', $family)
     goto(`${base}/dashboard`)
   }
 
@@ -49,16 +56,25 @@
 
       success = true
       
-      // Reinicializar la familia
-      await initializeFamily()
+      // Reinicializar la familia con forzado
+      console.log('Llamando initializeFamily después de unirse')
+      await initializeFamily(true)
       
-      setTimeout(() => {
+      // Pequeña pausa para asegurar actualización del store
+      await new Promise(resolve => setTimeout(resolve, 100))
+      
+      // Redirigir
+      if ($family) {
+        console.log('Redirigiendo al dashboard después de unirse')
         goto(`${base}/dashboard`)
-      }, 1500)
+      } else {
+        error = 'Te uniste a la familia pero no se pudo cargar. Por favor refresca la página.'
+      }
 
     } catch (err) {
       console.error('Error joining family:', err)
       error = 'Error inesperado'
+    } finally {
       loading = false
     }
   }
@@ -168,10 +184,19 @@
         console.log('Ya existen sujetos para esta familia:', existingSubjects)
         console.log('Saltando creación de sujetos duplicados')
         success = true
-        await initializeFamily()
-        setTimeout(() => {
+        
+        // Reinicializar familia con forzado
+        await initializeFamily(true)
+        
+        // Pequeña pausa para asegurar actualización del store
+        await new Promise(resolve => setTimeout(resolve, 100))
+        
+        // Redirigir
+        if ($family) {
           goto(`${base}/dashboard`)
-        }, 1500)
+        } else {
+          error = 'Familia encontrada pero no se pudo cargar. Por favor refresca la página.'
+        }
         return
       }
 
@@ -239,16 +264,29 @@
       console.log('Familia completa creada exitosamente')
       success = true
       
-      // Reinicializar la familia
-      await initializeFamily()
+      // Reinicializar la familia con forzado
+      console.log('Llamando initializeFamily con force=true')
+      await initializeFamily(true)
       
-      setTimeout(() => {
+      // Verificar que la familia se cargó correctamente
+      console.log('Familia después de inicializar:', $family)
+      
+      // Pequeña pausa para asegurar que el store se actualiza
+      await new Promise(resolve => setTimeout(resolve, 100))
+      
+      // Redirigir (el reactive statement debería haberlo hecho, pero por si acaso)
+      if ($family) {
+        console.log('Redirigiendo al dashboard')
         goto(`${base}/dashboard`)
-      }, 1500)
+      } else {
+        console.error('Error: familia no se cargó correctamente después de crearla')
+        error = 'Familia creada pero no se pudo cargar. Por favor refresca la página.'
+      }
 
     } catch (err) {
       console.error('Error en método tradicional:', err)
       error = `Error inesperado: ${err.message}`
+    } finally {
       loading = false
       isCreatingFamily = false
     }
