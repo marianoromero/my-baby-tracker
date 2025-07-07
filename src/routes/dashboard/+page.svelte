@@ -289,8 +289,8 @@
   }
 
   header {
-    background-color: var(--primary);
-    color: var(--white);
+    background-color: #1B7F79;
+    color: white;
     padding: var(--spacing-md);
     display: flex;
     justify-content: space-between;
@@ -355,13 +355,13 @@
   }
 
   .stats-btn {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: var(--white);
+    background: linear-gradient(135deg, #00CCC0 0%, #1B7F79 100%);
+    color: white;
   }
 
   .timeline-btn {
-    background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-    color: var(--white);
+    background: linear-gradient(135deg, #72F2EB 0%, #00CCC0 100%);
+    color: white;
   }
 
   .quick-btn:hover {

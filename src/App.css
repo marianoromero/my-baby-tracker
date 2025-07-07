@@ -168,125 +168,59 @@
     transform: translateY(0) !important;
   }
   
-  /* Degradados para botones de acción específicos */
-  .action-btn {
-    background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%) !important;
-    color: var(--black) !important;
-    border: 1px solid rgba(255, 255, 255, 0.2) !important;
-    transition: all 0.3s ease !important;
-  }
   
-  .action-btn:hover:not(:disabled) {
-    background: linear-gradient(135deg, #96e6e1 0%, #fcc9d9 100%) !important;
-    transform: translateY(-2px) !important;
-    box-shadow: var(--shadow-lg) !important;
-    opacity: 1 !important;
-  }
-  
-  .add-action-btn, .add-default-actions-btn {
-    background: linear-gradient(135deg, #84fab0 0%, #8fd3f4 100%) !important;
-    color: var(--black) !important;
-    border: none !important;
-    transition: all 0.3s ease !important;
-  }
-  
-  .add-action-btn:hover, .add-default-actions-btn:hover {
-    background: linear-gradient(135deg, #76f7a6 0%, #83cdf0 100%) !important;
-    transform: translateY(-2px) !important;
-    box-shadow: var(--shadow-lg) !important;
-  }
-  
-  /* Degradados para botones de miembros de familia */
+  /* Degradados para botones de miembros de familia en dashboard */
   .member-section {
-    position: relative;
-    overflow: hidden;
+    background: linear-gradient(135deg, #FF4858 0%, #FF8A9B 100%) !important;
+    color: white !important;
   }
   
-  .member-section::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0.05) 100%);
-    transition: all 0.3s ease;
-    z-index: 1;
+  .member-section:nth-child(2) {
+    background: linear-gradient(135deg, #00CCC0 0%, #72F2EB 100%) !important;
+    color: white !important;
   }
   
-  .member-section:hover::before {
-    background: linear-gradient(135deg, rgba(255, 255, 255, 0.2) 0%, rgba(255, 255, 255, 0.1) 100%);
+  .member-section:nth-child(3) {
+    background: linear-gradient(135deg, #1B7F79 0%, #00CCC0 100%) !important;
+    color: white !important;
   }
   
-  /* Mejorar botones del menú lateral */
-  .menu-item {
-    background: linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%) !important;
-    color: var(--black) !important;
-    transition: all 0.3s ease !important;
-    border: none !important;
-    margin-bottom: 8px !important;
-    border-radius: var(--radius-md) !important;
+  .member-section:nth-child(4) {
+    background: linear-gradient(135deg, #72F2EB 0%, #747F7F 100%) !important;
+    color: white !important;
   }
   
-  .menu-item:hover {
-    background: linear-gradient(135deg, #fde4c1 0%, #f9a68e 100%) !important;
-    transform: translateX(5px) !important;
-    box-shadow: var(--shadow-md) !important;
+  /* Colores de header para cada sección */
+  /* Stats - teal vibrante del primer color del botón Stats */
+  body[data-page="stats"] header {
+    background-color: #00CCC0 !important;
   }
   
-  .menu-item.logout {
-    background: linear-gradient(135deg, #ffeaa7 0%, #fab1a0 100%) !important;
+  /* Timeline - teal claro del primer color del botón Timeline */
+  body[data-page="timeline"] header {
+    background-color: #72F2EB !important;
   }
   
-  .menu-item.logout:hover {
-    background: linear-gradient(135deg, #fdcb6e 0%, #e17055 100%) !important;
+  /* Subject/Mi bebé - coral vibrante del primer color */
+  body[data-page^="subject"] header {
+    background-color: #FF4858 !important;
   }
   
-  /* Botones de modal y formularios */
-  .modal-footer .btn {
-    border-radius: var(--radius-md) !important;
-    font-weight: 600 !important;
-    padding: 12px 24px !important;
+  /* Family - teal del segundo miembro */
+  body[data-page="family"] header {
+    background-color: #00CCC0 !important;
   }
   
-  /* Botones de cantidad para biberón */
-  .amount-option {
-    background: linear-gradient(135deg, #ddd6fe 0%, #c4b5fd 100%) !important;
-    color: var(--black) !important;
-    border: 1px solid rgba(255, 255, 255, 0.3) !important;
-    transition: all 0.3s ease !important;
+  /* Auth - mantener el teal oscuro */
+  body[data-page="auth"] header {
+    background-color: #1B7F79 !important;
   }
   
-  .amount-option:hover {
-    background: linear-gradient(135deg, #c4b5fd 0%, #a78bfa 100%) !important;
-    transform: translateY(-2px) !important;
-    box-shadow: var(--shadow-md) !important;
+  /* Onboarding - mantener el teal oscuro */
+  body[data-page="onboarding"] header {
+    background-color: #1B7F79 !important;
   }
   
-  .amount-option.selected {
-    background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%) !important;
-    color: var(--white) !important;
-    transform: scale(1.05) !important;
-  }
-  
-  /* Botones de navegación */
-  .link-button {
-    background: none !important;
-    border: none !important;
-    color: var(--primary) !important;
-    text-decoration: underline !important;
-    cursor: pointer !important;
-    transition: all 0.2s ease !important;
-    font-weight: 500 !important;
-  }
-  
-  .link-button:hover {
-    background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%) !important;
-    padding: 4px 8px !important;
-    border-radius: var(--radius-sm) !important;
-    text-decoration: none !important;
-    transform: translateY(-1px) !important;
-  }
   
   /* Formularios */
   .form-group {

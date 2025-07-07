@@ -15,6 +15,23 @@
   
     // Rutas públicas que no requieren autenticación
     const publicRoutes = ['/auth', '/auth/callback', '/onboarding']
+    
+    // Función para obtener el nombre de la página actual
+    function getPageName(pathname) {
+      if (pathname.includes('/stats')) return 'stats'
+      if (pathname.includes('/timeline')) return 'timeline'
+      if (pathname.includes('/subject/')) return 'subject'
+      if (pathname.includes('/family')) return 'family'
+      if (pathname.includes('/auth')) return 'auth'
+      if (pathname.includes('/onboarding')) return 'onboarding'
+      return 'dashboard'
+    }
+    
+    // Reactivo para actualizar el data-page del body
+    $: if (browser && $page) {
+      const pageName = getPageName($page.url.pathname)
+      document.body.setAttribute('data-page', pageName)
+    }
   
     let hasInitialized = false
     let showSplash = true
