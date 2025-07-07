@@ -557,7 +557,7 @@
     /* Timeline vertical */
     .vertical-timeline {
       position: relative;
-      padding: var(--spacing-md) var(--spacing-sm);
+      padding: var(--spacing-xs) var(--spacing-sm) var(--spacing-md) var(--spacing-sm);
       background: var(--white);
       min-height: 500px;
     }
@@ -566,7 +566,7 @@
     .timeline-line {
       position: absolute;
       left: 50%;
-      top: 0;
+      top: var(--spacing-xs);
       bottom: 0;
       width: 3px;
       background: var(--gray);
@@ -580,9 +580,9 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      margin: var(--spacing-md) 0 calc(var(--spacing-lg) + var(--spacing-md)) 0;
+      margin: 4px 0 var(--spacing-sm) 0;
       z-index: 3;
-      min-height: 120px;
+      min-height: 24px;
     }
 
     .date-circle {
@@ -602,9 +602,9 @@
 
     .date-label {
       position: absolute;
-      top: 25px;
+      top: 50%;
       left: 50%;
-      transform: translateX(-50%);
+      transform: translate(-50%, -50%);
       background: var(--primary);
       color: var(--white);
       padding: var(--spacing-xs) var(--spacing-sm);
@@ -968,8 +968,8 @@
 
       .date-divider {
         justify-content: center;
-        margin: var(--spacing-xl) 0 calc(var(--spacing-lg) + var(--spacing-md)) 0;
-        min-height: 100px;
+        margin: 6px 0 var(--spacing-md) 0;
+        min-height: 30px;
       }
 
       .date-circle {
@@ -1160,8 +1160,8 @@
 
       /* Mayor separación para evitar solapamiento */
       .date-divider {
-        margin: calc(var(--spacing-xl) + var(--spacing-md)) 0 calc(var(--spacing-xl) + var(--spacing-sm)) 0;
-        min-height: 90px;
+        margin: 6px 0 var(--spacing-md) 0;
+        min-height: 28px;
       }
     }
     
