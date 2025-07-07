@@ -96,13 +96,14 @@
     // Calcular mililitros de biberón por día
     async function calculateBottleVolume(weekStart) {
         const weekEnd = new Date(weekStart)
-        weekEnd.setDate(weekStart.getDate() + 7)
+        weekEnd.setDate(weekStart.getDate() + 6)
+        weekEnd.setHours(23, 59, 59, 999) // Incluir todo el último día
         
         const { data: events, error } = await supabase
             .from('events')
             .select('*, subjects(*)')
             .gte('event_timestamp', weekStart.toISOString())
-            .lt('event_timestamp', weekEnd.toISOString())
+            .lte('event_timestamp', weekEnd.toISOString())
             .order('event_timestamp')
         
         if (error) {
@@ -110,11 +111,24 @@
             return {}
         }
         
+        console.log('Total events loaded:', events.length)
+        console.log('Week range:', weekStart.toISOString(), 'to', weekEnd.toISOString())
+        
+        // Debug: mostrar todos los eventos para verificar nombres
+        events.forEach(event => {
+            console.log('Event:', event.action_name, 'Date:', event.event_timestamp)
+        })
+        
         const bottleEvents = events.filter(event => 
             event.action_name.toLowerCase().includes('biber') ||
             event.action_name.toLowerCase().includes('bibi') ||
             event.action_name.toLowerCase().includes('botella')
         )
+        
+        console.log('Bottle events found:', bottleEvents.length)
+        bottleEvents.forEach(event => {
+            console.log('Bottle event:', event.action_name)
+        })
         
         const dailyBottle = {}
         
@@ -129,13 +143,17 @@
         bottleEvents.forEach(event => {
             // Extraer cantidad de los paréntesis
             const match = event.action_name.match(/\((\d+)ml\)/)
+            console.log('Checking event:', event.action_name, 'Match:', match)
             if (match) {
                 const volume = parseInt(match[1])
                 const eventDate = new Date(event.event_timestamp)
                 const dayKey = eventDate.toISOString().split('T')[0]
+                console.log('Adding', volume, 'ml to day', dayKey)
                 dailyBottle[dayKey] += volume
             }
         })
+        
+        console.log('Daily bottle totals:', dailyBottle)
         
         return dailyBottle
     }
