@@ -29,6 +29,8 @@
     let draggedOverItem = null
     let isDragging = false
     let dragStartY = 0
+    let longPressTimer = null
+    let dragActivatedByHandle = false
 
     // Variables para modal de biberón
     let showBottleModal = false
@@ -591,27 +593,100 @@
 
     // Funciones para drag and drop
     function handleDragStart(event, action) {
+        // Solo permitir drag desde desktop o si se activó desde el handle
+        if (event.type === 'touchstart' && !dragActivatedByHandle) {
+            return
+        }
+        
         if (event.type === 'touchstart') {
-            // Para mobile: guardar posición inicial del touch
             const touch = event.touches[0]
             dragStartY = touch.clientY
             draggedItem = action
-            
-            // Pequeño delay para distinguir entre tap y drag
-            setTimeout(() => {
-                if (draggedItem === action) {
-                    isDragging = true
-                    event.target.classList.add('dragging')
-                }
-            }, 150)
+            isDragging = true
         } else {
             // Para desktop: drag estándar
             draggedItem = action
             isDragging = true
             event.dataTransfer.effectAllowed = 'move'
             event.dataTransfer.setData('text/html', event.target.outerHTML)
-            event.target.classList.add('dragging')
         }
+        event.target.classList.add('dragging')
+    }
+
+    // Manejar touch en el handle de drag
+    function handleDragHandleTouch(event, action) {
+        event.stopPropagation()
+        const touch = event.touches[0]
+        dragStartY = touch.clientY
+        draggedItem = action
+        dragActivatedByHandle = true
+        
+        // Activar drag inmediatamente cuando se toca el handle
+        setTimeout(() => {
+            if (draggedItem === action && dragActivatedByHandle) {
+                isDragging = true
+                const wrapper = event.target.closest('.action-wrapper')
+                if (wrapper) wrapper.classList.add('dragging')
+            }
+        }, 50)
+    }
+
+    // Funciones combinadas para swipe y long press drag
+    function handleActionTouchWithSwipe(event, action) {
+        // Iniciar funcionalidad de swipe
+        handleSwipeStart(event, action)
+        
+        // Clearar timer previo de long press
+        if (longPressTimer) {
+            clearTimeout(longPressTimer)
+        }
+        
+        // Iniciar timer para long press (solo si no estamos ya en modo drag)
+        longPressTimer = setTimeout(() => {
+            if (!isDragging && !swipeData.get(action.id)?.isSwiping) {
+                dragActivatedByHandle = true
+                handleDragStart(event, action)
+                // Feedback háptico si está disponible
+                if (navigator.vibrate) {
+                    navigator.vibrate(50)
+                }
+            }
+        }, 800) // 800ms para long press
+    }
+
+    function handleActionTouchMoveWithSwipe(event, action) {
+        // Si estamos en modo drag, manejar el movimiento de drag
+        if (isDragging) {
+            handleTouchMove(event, action)
+            return
+        }
+        
+        // Cancelar long press si hay movimiento
+        if (longPressTimer) {
+            clearTimeout(longPressTimer)
+            longPressTimer = null
+        }
+        
+        // Manejar swipe
+        handleSwipeMove(event, action)
+    }
+
+    function handleActionTouchEndWithSwipe(event, action) {
+        // Clearar timer de long press
+        if (longPressTimer) {
+            clearTimeout(longPressTimer)
+            longPressTimer = null
+        }
+        
+        // Si estamos en modo drag, finalizar drag
+        if (isDragging) {
+            handleDragEnd(event)
+            dragActivatedByHandle = false
+            return
+        }
+        
+        // Sino, manejar el final del swipe
+        handleSwipeEnd(event, action)
     }
 
     function handleDragOver(event, action) {
@@ -655,26 +730,15 @@
     }
 
     function handleTouchMove(event, action) {
-        if (!draggedItem) return
+        if (!draggedItem || !isDragging) return
         
-        const touch = event.touches[0]
-        const currentY = touch.clientY
+        // Cancelar long press si el usuario se está moviendo
+        if (longPressTimer) {
+            clearTimeout(longPressTimer)
+            longPressTimer = null
+        }
         
-        // Si se movió suficiente verticalmente, considerarlo un drag
-        if (Math.abs(currentY - dragStartY) > 10) {
-            isDragging = true
-            event.target.classList.add('dragging')
-            handleDragOver(event, action)
-        }
-    }
-
-    function handleTouchEnd(event, action) {
-        if (isDragging) {
-            handleDragEnd(event)
-        } else {
-            // Si no era un drag, ejecutar la acción normal
-            draggedItem = null
-        }
+        handleDragOver(event, action)
     }
 
     // Reordenar acciones y actualizar base de datos
@@ -743,12 +807,15 @@
                     on:dragstart={(e) => handleDragStart(e, action)}
                     on:dragover={(e) => handleDragOver(e, action)}
                     on:dragend={handleDragEnd}
-                    on:touchstart={(e) => handleDragStart(e, action)}
                     on:touchmove={(e) => handleTouchMove(e, action)}
-                    on:touchend={(e) => handleTouchEnd(e, action)}
                 >
                     <!-- Indicador de drag -->
-                    <div class="drag-handle">
+                    <div 
+                        class="drag-handle"
+                        on:touchstart={(e) => handleDragHandleTouch(e, action)}
+                        on:touchmove={(e) => handleTouchMove(e, action)}
+                        on:touchend={(e) => handleActionTouchEndWithSwipe(e, action)}
+                    >
                         <i class="fa-solid fa-grip-vertical"></i>
                     </div>
                     
@@ -777,6 +844,9 @@
                         class:dragging={draggedItem?.id === action.id}
                         style="background-color: {subject?.color}33; color: {subject?.color}; transform: translateX({swipeData.get(action.id)?.deltaX || 0}px);"
                         on:click={() => !isDragging && registerEvent(action.name)}
+                        on:touchstart={(e) => handleActionTouchWithSwipe(e, action)}
+                        on:touchmove={(e) => handleActionTouchMoveWithSwipe(e, action)}
+                        on:touchend={(e) => handleActionTouchEndWithSwipe(e, action)}
                         disabled={registering || isDragging}
                     >
                         {action.name}
@@ -1176,20 +1246,23 @@
         left: 0;
         top: 0;
         bottom: 0;
-        width: 30px;
+        width: 35px;
         display: flex;
         align-items: center;
         justify-content: center;
         color: var(--gray);
-        background: rgba(255, 255, 255, 0.8);
+        background: rgba(255, 255, 255, 0.9);
         cursor: grab;
         transition: all 0.2s ease;
         z-index: 5;
         opacity: 0;
+        border-right: 1px solid rgba(0, 0, 0, 0.1);
     }
 
     .drag-handle:active {
         cursor: grabbing;
+        background: rgba(68, 129, 153, 0.1);
+        color: var(--primary);
     }
 
     .action-wrapper:hover .drag-handle {
@@ -1197,19 +1270,38 @@
     }
 
     .drag-handle i {
-        font-size: 0.8rem;
+        font-size: 0.9rem;
         pointer-events: none;
     }
 
-    /* Mobile: Always show drag handle */
+    /* Mobile: Always show drag handle and make it more touch-friendly */
     @media (max-width: 768px) {
         .drag-handle {
-            opacity: 0.6;
-            width: 25px;
+            opacity: 0.7;
+            width: 40px;
+            background: rgba(255, 255, 255, 0.95);
         }
         
         .action-wrapper:hover .drag-handle {
             opacity: 1;
+        }
+        
+        .drag-handle i {
+            font-size: 1rem;
+        }
+        
+        /* Visual hint for long press */
+        .drag-handle::after {
+            content: '';
+            position: absolute;
+            bottom: 4px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 2px;
+            height: 2px;
+            background: var(--gray);
+            border-radius: 50%;
+            opacity: 0.5;
         }
     }
     
@@ -1308,7 +1400,7 @@
 
     .action-btn {
         padding: var(--spacing-lg);
-        padding-left: 50px; /* Espacio para el drag handle */
+        padding-left: 55px; /* Espacio para el drag handle más ancho */
         border: none;
         cursor: pointer;
         transition: transform 0.3s ease, opacity 0.2s ease;
@@ -1327,10 +1419,10 @@
         pointer-events: none;
     }
 
-    /* Mobile: Menos padding para el drag handle */
+    /* Mobile: Padding ajustado para el drag handle más ancho */
     @media (max-width: 768px) {
         .action-btn {
-            padding-left: 40px;
+            padding-left: 50px;
         }
     }
     
