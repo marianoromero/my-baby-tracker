@@ -77,6 +77,47 @@
       selectedSubjects = newSelectedSubjects
     }
     
+    // Formatear fecha con día de la semana
+    function formatDateHeader(dateString) {
+      // Si tiene el formato "lunes, 7 de julio de 2025", transformarlo
+      if (dateString.includes(' de ')) {
+        // Capitalizar primera letra y reemplazar " de " con " / "
+        const result = dateString
+          .replace(/^(\w)/, (match) => match.toUpperCase()) // Primera letra mayúscula
+          .replace(/ de /g, ' / ') // Reemplazar " de " con " / "
+          .replace(/(\w+)$/g, (match) => match) // Mantener el año
+        
+        return result
+      }
+      
+      // Fallback para otros formatos
+      let date
+      if (dateString.includes('/')) {
+        const parts = dateString.split('/')
+        if (parts.length === 3) {
+          date = new Date(parts[2], parts[1] - 1, parts[0])
+        }
+      } else if (dateString.includes('-')) {
+        date = new Date(dateString + 'T00:00:00')
+      } else {
+        date = new Date(dateString)
+      }
+      
+      if (isNaN(date.getTime())) {
+        return dateString
+      }
+      
+      const days = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado']
+      const months = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']
+      
+      const dayName = days[date.getDay()]
+      const day = date.getDate()
+      const month = months[date.getMonth()]
+      const year = date.getFullYear()
+      
+      return `${dayName}, ${day}/${month}/${year}`
+    }
+
     // Obtener el icono del evento basado en la acción
     function getActionIcon(actionName) {
       const iconMap = {
@@ -329,15 +370,13 @@
         <div class="timeline-line"></div>
         
         {#each Object.entries(filteredEvents) as [date, dateEvents]}
-          <!-- Encabezado de fecha -->
-          <div class="date-divider">
-            <!--<div class="date-circle">
-              <i class="fa-solid fa-calendar"></i>
-            </div>-->
-            <div class="date-label">{date}</div>
-          </div>
-          
           {#each dateEvents as event, index}
+            {#if index === 0}
+              <!-- Mostrar fecha solo en el primer evento del día -->
+              <div class="date-header">
+                <div class="date-badge">{formatDateHeader(date)}</div>
+              </div>
+            {/if}
             <div class="timeline-item" class:left={index % 2 === 0} class:right={index % 2 === 1}>
               <!-- Círculo conector -->
               <div class="timeline-connector">
@@ -574,37 +613,17 @@
       z-index: 1;
     }
 
-    /* Divisor de fecha */
-    .date-divider {
+    /* Encabezado de fecha */
+    .date-header {
       position: relative;
       display: flex;
       align-items: center;
       justify-content: center;
-      margin: 4px 0 var(--spacing-sm) 0;
+      margin: var(--spacing-xs) 0 var(--spacing-sm) 0;
       z-index: 3;
-      min-height: 24px;
     }
 
-    .date-circle {
-      width: 60px;
-      height: 60px;
-      background: var(--primary);
-      border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: var(--white);
-      font-size: 1.2rem;
-      box-shadow: var(--shadow-md);
-      position: relative;
-      z-index: 4;
-    }
-
-    .date-label {
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
+    .date-badge {
       background: var(--primary);
       color: var(--white);
       padding: var(--spacing-xs) var(--spacing-sm);
@@ -613,6 +632,7 @@
       font-weight: 500;
       white-space: nowrap;
       text-transform: capitalize;
+      box-shadow: var(--shadow-sm);
     }
 
     /* Item del timeline */
@@ -966,24 +986,11 @@
         display: none; /* Ocultar flechas en mobile */
       }
 
-      .date-divider {
+      .date-header {
         justify-content: center;
-        margin: 6px 0 var(--spacing-md) 0;
-        min-height: 30px;
+        margin: var(--spacing-xs) 0 var(--spacing-sm) 0;
       }
 
-      .date-circle {
-        width: 40px;
-        height: 40px;
-        font-size: 0.9rem;
-      }
-
-      .date-label {
-        top: 50px;
-        font-size: 0.7rem;
-        left: 50%;
-        transform: translateX(-50%);
-      }
 
       /* Alineación del contenido según posición */
       .timeline-item.left .card-header {
@@ -1134,15 +1141,6 @@
         padding-right: 5px;
       }
 
-      .date-circle {
-        width: 35px;
-        height: 35px;
-        font-size: 0.8rem;
-      }
-
-      .date-label {
-        font-size: 0.65rem;
-      }
 
       .connector-circle {
         width: 25px;
@@ -1159,9 +1157,8 @@
       }
 
       /* Mayor separación para evitar solapamiento */
-      .date-divider {
-        margin: 6px 0 var(--spacing-md) 0;
-        min-height: 28px;
+      .date-header {
+        margin: var(--spacing-xs) 0 var(--spacing-sm) 0;
       }
     }
     
