@@ -174,18 +174,17 @@ async function loadSubjectsAndActions(familyId) {
       .from('actions')
       .select('*')
       .eq('subject_id', subject.id)
-      .order('sort_order', { ascending: true, nullsFirst: false })
+      .order('sort_order', { ascending: true })
       .order('name')
 
-    console.log(`Actions for ${subject.name}:`, { actionsData, actionsError })
-
-    if (!actionsError) {
+    if (actionsError) {
+      console.error(`Error loading actions for ${subject.name}:`, actionsError)
+    } else {
       actionsMap[subject.id] = actionsData || []
     }
   }
 
   actions.set(actionsMap)
-  console.log('Actions map final:', actionsMap)
 }
 
 // Función para unirse a una familia con código de invitación
@@ -261,9 +260,10 @@ export async function joinFamilyWithCode(invitationCode) {
       const { error: actionsError } = await supabase
         .from('actions')
         .insert(
-          defaultActions.map(actionName => ({
+          defaultActions.map((actionName, index) => ({
             subject_id: newSubject.id,
-            name: actionName
+            name: actionName,
+            sort_order: index
           }))
         )
 

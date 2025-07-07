@@ -170,6 +170,85 @@
         )
     }
     
+    // Añadir acciones por defecto para "Mi bebé"
+    async function addDefaultBabyActions() {
+        if (!subject || subject.name !== 'Mi bebé') return
+        
+        const defaultActions = [
+            'Se duerme', 
+            'Se despierta', 
+            'Toma biberón', 
+            'Cambio de pañal (con caca)', 
+            'Cambio de pañal (sin caca)', 
+            'Peso', 
+            'Estatura'
+        ]
+        
+        // Verificar qué acciones ya existen
+        const existingActionNames = subjectActions.map(a => a.name)
+        const missingActions = defaultActions.filter(actionName => 
+            !existingActionNames.includes(actionName)
+        )
+        
+        if (missingActions.length === 0) {
+            showNotification('✅ Ya tienes todas las acciones por defecto')
+            return
+        }
+        
+        try {
+            // Obtener el próximo sort_order
+            const maxSortOrder = Math.max(...subjectActions.map(a => a.sort_order || 0), -1)
+            
+            const actionsToInsert = missingActions.map((actionName, index) => ({
+                subject_id: subject.id,
+                name: actionName,
+                sort_order: maxSortOrder + 1 + index
+            }))
+            
+            // Insertar las acciones faltantes
+            const { error: insertError } = await supabase
+                .from('actions')
+                .insert(actionsToInsert)
+            
+            if (insertError) throw insertError
+            
+            // Actualizar el store local
+            const updatedActions = { ...$actions }
+            if (!updatedActions[subject.id]) {
+                updatedActions[subject.id] = []
+            }
+            
+            missingActions.forEach((actionName, index) => {
+                updatedActions[subject.id].push({
+                    id: `temp-${Date.now()}-${index}`, // ID temporal
+                    subject_id: subject.id,
+                    name: actionName,
+                    sort_order: maxSortOrder + 1 + index
+                })
+            })
+            
+            actions.set(updatedActions)
+            showNotification(`✅ ${missingActions.length} acciones añadidas`)
+            
+            // Recargar las acciones desde la base de datos para obtener los IDs reales
+            const { data: refreshedActions } = await supabase
+                .from('actions')
+                .select('*')
+                .eq('subject_id', subject.id)
+                .order('sort_order', { ascending: true })
+                .order('name')
+            
+            if (refreshedActions) {
+                updatedActions[subject.id] = refreshedActions
+                actions.set(updatedActions)
+            }
+            
+        } catch (error) {
+            console.error('Error añadiendo acciones por defecto:', error)
+            showNotification('❌ Error al añadir las acciones')
+        }
+    }
+
     // Añadir nueva acción
     async function addNewAction() {
         if (!newActionName.trim()) return
@@ -207,7 +286,7 @@
             showAddAction = false
         } catch (error) {
             console.error('Error al añadir acción:', error)
-            showNotification('❌ Error al añadir la acción')
+            showNotification(`❌ Error al añadir la acción: ${error.message}`)
         }
     }
     
@@ -731,14 +810,26 @@
                     </div>
                 </div>
             {:else}
-                <button 
-                    class="add-action-btn"
-                    on:click={() => showAddAction = true}
-                    style="border-color: {subject?.color}; color: {subject?.color}"
-                >
-                    <i class="fa-solid fa-plus"></i>
-                    Añadir acción
-                </button>
+                <div class="add-actions-container">
+                    {#if subject?.name === 'Mi bebé'}
+                        <button 
+                            class="add-default-actions-btn"
+                            on:click={addDefaultBabyActions}
+                            style="border-color: {subject?.color}; color: {subject?.color}"
+                        >
+                            <i class="fa-solid fa-magic"></i>
+                            Añadir acciones por defecto
+                        </button>
+                    {/if}
+                    <button 
+                        class="add-action-btn"
+                        on:click={() => showAddAction = true}
+                        style="border-color: {subject?.color}; color: {subject?.color}"
+                    >
+                        <i class="fa-solid fa-plus"></i>
+                        Añadir acción personalizada
+                    </button>
+                </div>
             {/if}
         </div>
     </main>
@@ -1256,7 +1347,14 @@
         cursor: not-allowed;
     }
 
-    .add-action-btn {
+    .add-actions-container {
+        display: flex;
+        flex-direction: column;
+        gap: var(--spacing-sm);
+    }
+
+    .add-action-btn,
+    .add-default-actions-btn {
         padding: var(--spacing-lg);
         background: var(--white);
         border: 2px dashed;
@@ -1270,9 +1368,25 @@
         border-radius: 0;
     }
 
-    .add-action-btn:hover {
+    .add-default-actions-btn {
+        border-style: solid;
+        font-weight: 600;
+        background: rgba(255, 107, 107, 0.1);
+    }
+
+    .add-default-actions-btn i {
+        color: #FFD700;
+    }
+
+    .add-action-btn:hover,
+    .add-default-actions-btn:hover {
         background: var(--gray-light);
         opacity: 0.8;
+        transform: translateY(-1px);
+    }
+
+    .add-default-actions-btn:hover {
+        background: rgba(255, 107, 107, 0.2);
     }
 
     .add-action-form {

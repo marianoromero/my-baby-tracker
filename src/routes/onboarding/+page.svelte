@@ -203,7 +203,15 @@
 
       // Crear acciones por defecto para cada sujeto
       const defaultActions = {
-        'Mi bebé': ['Lactancia', 'Cambio pañal', 'Siesta', 'Peso', 'Estatura'],
+        'Mi bebé': [
+          'Se duerme', 
+          'Se despierta', 
+          'Toma biberón', 
+          'Cambio de pañal (con caca)', 
+          'Cambio de pañal (sin caca)', 
+          'Peso', 
+          'Estatura'
+        ],
         'Mi pareja': ['Salió de casa', 'Llegó a casa', 'Comida'],
         'Yo': ['Salí de casa', 'Llegué a casa', 'Descanso']
       }
@@ -215,9 +223,10 @@
           const { error: actionsError } = await supabase
             .from('actions')
             .insert(
-              actions.map(actionName => ({
+              actions.map((actionName, index) => ({
                 subject_id: subject.id,
-                name: actionName
+                name: actionName,
+                sort_order: index
               }))
             )
           
