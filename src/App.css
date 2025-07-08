@@ -1,19 +1,34 @@
 /* src/app.css */
 
 :root {
-    /* Colores Japanese Garden */
-    --primary: #458199;
+    /* Paleta de colores por defecto (Cloud Soft) */
+    --color-background: #F8FAFC;
+    --color-surface: #FFFFFF;
+    --color-primary: #A8D8F8;
+    --color-primary-dark: #8BC5E8;
+    --color-weight: #FFDC9B;
+    --color-poop: #F4C99C;
+    --color-bottle: #C7EBD8;
+    --color-sleep: #D6C7F7;
+    --color-text: #1E293B;
+    --color-text-light: #64748B;
+    --color-text-muted: #94A3B8;
+    --color-border: #E2E8F0;
+    --color-border-light: #F1F5F9;
+    
+    /* Colores legacy - mantenidos para compatibilidad */
+    --primary: var(--color-primary);
     --secondary: #99BECC;
     --baby: #FFBA6C;
     --partner: #FFA299;
     --self: #CC99A3;
     
-    /* Colores base */
+    /* Colores base legacy */
     --white: #FFFFFF;
     --black: #1A1A1A;
-    --gray-light: #F5F5F5;
-    --gray: #E0E0E0;
-    --gray-dark: #666666;
+    --gray-light: var(--color-border-light);
+    --gray: var(--color-border);
+    --gray-dark: var(--color-text-light);
     
     /* Espaciados */
     --spacing-xs: 0.25rem;
@@ -44,9 +59,10 @@
   
   body {
     font-family: 'Lato', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    color: var(--black);
-    background-color: var(--white);
+    color: var(--color-text);
+    background-color: var(--color-background);
     line-height: 1.5;
+    transition: background-color 0.3s ease, color 0.3s ease;
   }
   
   /* Utilidades */
@@ -169,26 +185,7 @@
   }
   
   
-  /* Degradados para botones de miembros de familia en dashboard */
-  .member-section {
-    background: linear-gradient(135deg, #FF4858 0%, #FF8A9B 100%) !important;
-    color: white !important;
-  }
-  
-  .member-section:nth-child(2) {
-    background: linear-gradient(135deg, #00CCC0 0%, #72F2EB 100%) !important;
-    color: white !important;
-  }
-  
-  .member-section:nth-child(3) {
-    background: linear-gradient(135deg, #1B7F79 0%, #00CCC0 100%) !important;
-    color: white !important;
-  }
-  
-  .member-section:nth-child(4) {
-    background: linear-gradient(135deg, #72F2EB 0%, #747F7F 100%) !important;
-    color: white !important;
-  }
+  /* Los colores de las secciones de miembros ahora se manejan dinámicamente en el componente Dashboard */
   
   /* Colores de header para cada sección */
   /* Stats - teal vibrante del primer color del botón Stats */
@@ -209,6 +206,11 @@
   /* Family - teal del segundo miembro */
   body[data-page="family"] header {
     background-color: #00CCC0 !important;
+  }
+  
+  /* Styles - color palette related */
+  body[data-page="styles"] header {
+    background-color: #8B5CF6 !important;
   }
   
   /* Auth - mantener el teal oscuro */
@@ -262,4 +264,35 @@
   
   .fade-in {
     animation: fadeIn 0.3s ease;
+  }
+
+  /* Clases de utilidad para las nuevas paletas */
+  .bg-primary { background-color: var(--color-primary) !important; }
+  .bg-weight { background-color: var(--color-weight) !important; }
+  .bg-poop { background-color: var(--color-poop) !important; }
+  .bg-bottle { background-color: var(--color-bottle) !important; }
+  .bg-sleep { background-color: var(--color-sleep) !important; }
+  .bg-surface { background-color: var(--color-surface) !important; }
+  
+  .text-primary { color: var(--color-primary) !important; }
+  .text-on-primary { color: white !important; }
+  .text-muted { color: var(--color-text-muted) !important; }
+  
+  /* Estilos específicos para temas */
+  .theme-night-light {
+    --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.3);
+    --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.4);
+    --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.5);
+  }
+  
+  .theme-cloud-soft,
+  .theme-bubble-pop {
+    --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+    --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+  }
+  
+  /* Transiciones suaves para cambios de tema */
+  *, *::before, *::after {
+    transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
   }

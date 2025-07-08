@@ -12,6 +12,7 @@
     import LoadingScreen from '$lib/components/LoadingScreen.svelte'
     import SplashScreen from '$lib/components/SplashScreen.svelte'
     import { family, familyLoading } from '$lib/stores/family'
+    import { currentTheme, colorPalettes } from '$lib/stores/theme'
   
     // Rutas públicas que no requieren autenticación
     const publicRoutes = ['/auth', '/auth/callback', '/onboarding']
@@ -22,6 +23,7 @@
       if (pathname.includes('/timeline')) return 'timeline'
       if (pathname.includes('/subject/')) return 'subject'
       if (pathname.includes('/family')) return 'family'
+      if (pathname.includes('/styles')) return 'styles'
       if (pathname.includes('/auth')) return 'auth'
       if (pathname.includes('/onboarding')) return 'onboarding'
       return 'dashboard'
@@ -31,6 +33,33 @@
     $: if (browser && $page) {
       const pageName = getPageName($page.url.pathname)
       document.body.setAttribute('data-page', pageName)
+    }
+    
+    // Función para aplicar los colores del tema al DOM
+    function applyThemeColors(paletteId) {
+      if (!browser) return
+      
+      const palette = colorPalettes[paletteId]
+      if (!palette) return
+      
+      const root = document.documentElement
+      
+      // Aplicar todas las variables CSS
+      Object.entries(palette.colors).forEach(([key, value]) => {
+        root.style.setProperty(`--color-${key}`, value)
+      })
+      
+      // Aplicar clase del tema al body para estilos específicos
+      document.body.className = document.body.className.replace(/theme-\w+/g, '')
+      document.body.classList.add(`theme-${paletteId}`)
+      
+      console.log('Theme applied:', paletteId, palette.colors)
+    }
+    
+    // Reactivo para aplicar cambios de tema
+    $: if (browser && $currentTheme) {
+      console.log('Applying theme from reactive:', $currentTheme)
+      applyThemeColors($currentTheme)
     }
   
     let hasInitialized = false
@@ -42,6 +71,11 @@
     
     onMount(() => {
       console.log('Layout onMount - hasInitialized:', hasInitialized)
+      
+      // Inicializar tema inmediatamente
+      const savedTheme = localStorage.getItem('baby-tracker-theme') || 'cloud-soft'
+      console.log('Initializing theme on mount:', savedTheme)
+      applyThemeColors(savedTheme)
       
       // Timeout de emergencia - si después de 5 segundos no se ha inicializado, forzar continuar
       emergencyTimeout = setTimeout(() => {

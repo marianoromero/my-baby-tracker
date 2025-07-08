@@ -6,9 +6,36 @@
     import { goto } from '$app/navigation'
     import { base } from '$app/paths'
     import { onMount } from 'svelte'
+    import { currentTheme, getCurrentColors } from '$lib/stores/theme'
     
     let menuOpen = false
     let lastActions = {} // Para almacenar las últimas acciones por sujeto
+    
+    // Función para obtener el color temático según el tipo de sujeto
+    function getSubjectThemeColor(subject, index) {
+      const colors = getCurrentColors($currentTheme)
+      
+      // Determinar el tipo de sujeto basado en el nombre o icono
+      const name = subject.name.toLowerCase()
+      const icon = subject.icon
+      
+      if (name.includes('bebé') || name.includes('baby') || icon === 'fa-baby') {
+        // Bebé usa colores de sleep (calmantes) y bottle (alimentación)
+        return `linear-gradient(135deg, ${colors['sleep']} 0%, ${colors['bottle']} 100%)`
+      } else if (name.includes('pareja') || name.includes('partner') || icon === 'fa-heart') {
+        // Pareja usa colores primarios
+        return `linear-gradient(135deg, ${colors['primary']} 0%, ${colors['primary-dark']} 100%)`
+      } else if (name.includes('yo') || name.includes('me') || icon === 'fa-user') {
+        // Yo/usuario usa colores de peso y cuidado personal
+        return `linear-gradient(135deg, ${colors['weight']} 0%, ${colors['poop']} 100%)`
+      } else {
+        // Para otros miembros, usar colores rotativos basados en el índice
+        const colorKeys = ['primary', 'bottle', 'weight', 'sleep']
+        const baseColor = colors[colorKeys[index % colorKeys.length]]
+        const accentColor = colors[colorKeys[(index + 1) % colorKeys.length]]
+        return `linear-gradient(135deg, ${baseColor} 0%, ${accentColor} 100%)`
+      }
+    }
     
     // Cargar última acción para cada sujeto
     async function loadLastActions() {
@@ -133,6 +160,11 @@
     function navigateToSubject(subjectId) {
       goto(`${base}/subject/${subjectId}`)
     }
+
+    function navigateToStyles() {
+      closeMenu()
+      goto(`${base}/styles`)
+    }
 </script>
 
 {#if $familyLoading}
@@ -166,10 +198,10 @@
 
       <!-- Secciones de miembros - 75% inferior -->
       <div class="members-sections">
-        {#each $subjects as subject}
+        {#each $subjects as subject, index}
           <button 
             class="member-section" 
-            style="background-color: {subject.color}"
+            style="background: {getSubjectThemeColor(subject, index)}"
             on:click={() => navigateToSubject(subject.id)}
           >
             <div class="member-content">
@@ -234,6 +266,11 @@
         <i class="fa-solid fa-users"></i>
         Family
       </button>
+      
+      <button class="menu-item" on:click={navigateToStyles}>
+        <i class="fa-solid fa-palette"></i>
+        Styles
+      </button>
     </div>
 
     <div class="menu-divider"></div>
@@ -280,7 +317,7 @@
 
   .container {
     height: 100vh;
-    background-color: var(--gray-light);
+    background-color: var(--color-background);
     width: 100%;
     max-width: none;
     display: flex;
@@ -327,14 +364,14 @@
   .quick-access {
     height: 25vh;
     display: flex;
-    background: var(--white);
+    background: var(--color-surface);
   }
 
   .quick-btn {
     flex: 1;
     border: none;
-    background: var(--gray-light);
-    color: var(--gray-dark);
+    background: var(--color-border-light);
+    color: var(--color-text-light);
     font-size: 1.2rem;
     font-weight: 600;
     cursor: pointer;
@@ -355,12 +392,12 @@
   }
 
   .stats-btn {
-    background: linear-gradient(135deg, #00CCC0 0%, #1B7F79 100%);
+    background: var(--color-primary);
     color: white;
   }
 
   .timeline-btn {
-    background: linear-gradient(135deg, #72F2EB 0%, #00CCC0 100%);
+    background: var(--color-primary-dark);
     color: white;
   }
 
@@ -460,7 +497,7 @@
     right: -300px;
     width: 300px;
     height: 100vh;
-    background: var(--white);
+    background: var(--color-surface);
     box-shadow: var(--shadow-lg);
     transition: right 0.3s ease;
     z-index: 1000;
@@ -480,7 +517,7 @@
     background: none;
     border: none;
     font-size: 1.5rem;
-    color: var(--gray-dark);
+    color: var(--color-text-light);
     cursor: pointer;
   }
 
@@ -493,7 +530,7 @@
   }
 
   .menu-section h3 {
-    color: var(--primary);
+    color: var(--color-primary);
     margin-bottom: var(--spacing-sm);
   }
 
@@ -502,7 +539,7 @@
     align-items: center;
     gap: var(--spacing-sm);
     padding: var(--spacing-sm);
-    background: var(--gray-light);
+    background: var(--color-border-light);
     border-radius: var(--radius-sm);
     cursor: pointer;
   }
@@ -524,12 +561,12 @@
     border: none;
     text-align: left;
     cursor: pointer;
-    color: var(--gray-dark);
+    color: var(--color-text-light);
     transition: background-color 0.2s ease;
   }
 
   .menu-item:hover {
-    background: var(--gray-light);
+    background: var(--color-border-light);
   }
 
   .menu-item.logout {
@@ -538,7 +575,7 @@
 
   .menu-divider {
     height: 1px;
-    background: var(--gray);
+    background: var(--color-border);
     margin: var(--spacing-md) 0;
   }
 
