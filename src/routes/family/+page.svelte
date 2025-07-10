@@ -15,6 +15,16 @@
   let newMemberName = ''
   let newMemberIcon = 'fa-user'
   let newMemberColor = '#45B7D1'
+  let isAdmin = false
+
+  // Verificar status de admin al cargar la página
+  $: if ($user && $family) {
+    checkAdminStatus()
+  }
+
+  async function checkAdminStatus() {
+    isAdmin = await isUserAdmin()
+  }
 
   // Opciones predefinidas para iconos y colores
   const iconOptions = [
@@ -33,6 +43,118 @@
     '#FECA57', '#FF9FF3', '#54A0FF', '#5F27CD',
     '#00D2D3', '#FF9F43', '#A55EEA', '#26DE81'
   ]
+
+  // Función para verificar si el usuario actual es admin de la familia
+  async function isUserAdmin() {
+    try {
+      const { data: memberData, error } = await supabase
+        .from('family_members')
+        .select('role')
+        .eq('family_id', $family.id)
+        .eq('user_id', $user.id)
+        .single()
+
+      if (error) {
+        console.error('Error checking admin status:', error)
+        return false
+      }
+
+      return memberData?.role === 'admin'
+    } catch (err) {
+      console.error('Error checking admin status:', err)
+      return false
+    }
+  }
+
+  // Función para eliminar un miembro (solo admins)
+  async function deleteMember(subjectId, subjectName) {
+    // Verificar permisos de admin
+    const userIsAdmin = await isUserAdmin()
+    if (!userIsAdmin) {
+      error = 'Solo los administradores pueden eliminar miembros'
+      return
+    }
+
+    // Mostrar confirmación
+    const confirmed = confirm(`¿Estás seguro de que quieres eliminar a "${subjectName}" de la familia?\n\nNota: Los eventos ya registrados por este miembro se conservarán en el historial familiar.`)
+    if (!confirmed) {
+      return
+    }
+
+    loading = true
+    error = null
+
+    try {
+      console.log('Eliminando miembro:', subjectId, subjectName)
+
+      // Primero, verificar si el miembro tiene eventos registrados
+      const { data: eventsData, error: eventsCheckError } = await supabase
+        .from('events')
+        .select('id')
+        .eq('subject_id', subjectId)
+        .limit(1)
+
+      if (eventsCheckError) {
+        console.error('Error verificando eventos:', eventsCheckError)
+        error = 'Error al verificar el historial del miembro'
+        return
+      }
+
+      const hasEvents = eventsData && eventsData.length > 0
+
+      // Solo eliminar las acciones del sujeto (las plantillas de acciones)
+      // Los eventos se conservan para mantener el historial
+      const { error: actionsError } = await supabase
+        .from('actions')
+        .delete()
+        .eq('subject_id', subjectId)
+
+      if (actionsError) {
+        console.error('Error eliminando acciones:', actionsError)
+        error = 'Error al eliminar las acciones del miembro'
+        return
+      }
+
+      // Eliminar el sujeto/miembro
+      const { error: subjectError } = await supabase
+        .from('subjects')
+        .delete()
+        .eq('id', subjectId)
+
+      if (subjectError) {
+        console.error('Error eliminando sujeto:', subjectError)
+        error = 'Error al eliminar el miembro'
+        return
+      }
+
+      console.log('Miembro eliminado exitosamente')
+
+      // Actualizar el store local
+      subjects.update(currentSubjects => 
+        currentSubjects.filter(subject => subject.id !== subjectId)
+      )
+
+      // Mostrar mensaje de éxito con información sobre los eventos
+      if (hasEvents) {
+        success = true
+        setTimeout(() => {
+          alert(`${subjectName} ha sido eliminado de la familia.\n\nLos eventos registrados por este miembro se han conservado en el historial familiar.`)
+          success = false
+        }, 100)
+      } else {
+        success = true
+        setTimeout(() => {
+          success = false
+        }, 3000)
+      }
+
+    } catch (err) {
+      console.error('Error:', err)
+      error = 'Error inesperado: ' + err.message
+    } finally {
+      loading = false
+    }
+  }
 
   // Función para actualizar el nombre de un sujeto
   async function updateSubjectName(subjectId, newName) {
@@ -308,7 +430,7 @@
       <div class="section-header">
         <div>
           <h2>Miembros de la Familia</h2>
-          <p class="section-description">Puedes editar los nombres, asociarte con uno de los miembros o agregar nuevos</p>
+          <p class="section-description">Puedes editar los nombres, asociarte con uno de los miembros o agregar nuevos. {#if isAdmin}<strong>Como administrador, tienes permisos para eliminar miembros.</strong>{/if}</p>
         </div>
         <button 
           class="add-member-btn"

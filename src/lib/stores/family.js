@@ -131,12 +131,13 @@ async function createNewFamily(userId) {
     }
   }
 
-  // Añadir al usuario como miembro
+  // Añadir al usuario como miembro admin (creador de familia)
   const { error: addMemberError } = await supabase
     .from('family_members')
     .insert({
       user_id: userId,
-      family_id: newFamily.id
+      family_id: newFamily.id,
+      role: 'admin'
     })
 
   if (addMemberError) {
@@ -214,12 +215,13 @@ export async function joinFamilyWithCode(invitationCode) {
       return { error: 'Ya eres miembro de esta familia' }
     }
 
-    // Añadir como miembro
+    // Añadir como miembro regular
     const { error: addError } = await supabase
       .from('family_members')
       .insert({
         user_id: userId,
-        family_id: familyData.id
+        family_id: familyData.id,
+        role: 'member'
       })
 
     if (addError) {

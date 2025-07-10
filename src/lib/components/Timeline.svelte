@@ -380,7 +380,7 @@
             <div class="timeline-item" class:left={index % 2 === 0} class:right={index % 2 === 1}>
               <!-- Círculo conector -->
               <div class="timeline-connector">
-                <div class="connector-circle" style="background-color: {event.subjects?.color}">
+                <div class="connector-circle" style="background-color: {event.subjects?.color || '#999'}">
                   <i class="fa-solid {getActionIcon(event.action_name)}"></i>
                 </div>
               </div>
@@ -425,9 +425,11 @@
                   </div>
                   
                   <div class="card-content">
-                    <div class="card-subject" style="color: {event.subjects?.color}">
-                      <i class="fa-solid {event.subjects?.icon}"></i>
-                      <span class="subject-name">{event.subjects?.name}</span>
+                    <div class="card-subject" style="color: {event.subjects?.color || '#999'}">
+                      <i class="fa-solid {event.subjects?.icon || 'fa-user-slash'}"></i>
+                      <span class="subject-name">
+                        {event.subjects?.name || 'Miembro eliminado'}
+                      </span>
                     </div>
                     <div class="card-action">{event.action_name}</div>
                     <div class="card-user">por {getUserName(event)}</div>
@@ -877,6 +879,16 @@
 
     .subject-name {
       font-weight: 700;
+    }
+
+    /* Estilo para miembros eliminados */
+    .card-subject[style*="#999"] {
+      opacity: 0.7;
+    }
+    
+    .card-subject[style*="#999"] .subject-name {
+      font-style: italic;
+      text-decoration: line-through;
     }
 
     .card-action {
