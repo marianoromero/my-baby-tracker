@@ -24,6 +24,7 @@
       if (pathname.includes('/subject/')) return 'subject'
       if (pathname.includes('/family')) return 'family'
       if (pathname.includes('/styles')) return 'styles'
+      if (pathname.includes('/special-fields')) return 'special-fields'
       if (pathname.includes('/auth')) return 'auth'
       if (pathname.includes('/onboarding')) return 'onboarding'
       return 'dashboard'

@@ -152,6 +152,12 @@
       goto(`${base}/stats`)
     }
 
+    function navigateToSpecialFields() {
+      console.log('Navigating to special fields')
+      closeMenu()
+      goto(`${base}/special-fields`)
+    }
+
     function navigateToImportPediatric() {
       closeMenu()
       goto(`${base}/admin/import-pediatric`)
@@ -255,6 +261,11 @@
       <button class="menu-item" on:click={navigateToStats}>
         <i class="fa-solid fa-chart-bar"></i>
         Stats
+      </button>
+      
+      <button class="menu-item" on:click={navigateToSpecialFields}>
+        <i class="fa-solid fa-wrench"></i>
+        Campos Especiales
       </button>
       
       <button class="menu-item" on:click={navigateToImportPediatric}>

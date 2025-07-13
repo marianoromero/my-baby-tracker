@@ -52,6 +52,11 @@
     let heightMeters = 0 // Metros por defecto
     let heightCentimeters = 50 // Centímetros por defecto (0-99)
     let lastHeight = null // Última estatura registrada
+
+    // Variables para modal de leche fórmula
+    let showFormulaModal = false
+    let selectedFormulaAction = null
+    let formulaBrand = '' // Marca/Tipo/Etapa (texto libre)
     
     // Cargar datos del sujeto y sus acciones
     $: {
@@ -103,6 +108,13 @@
             return
         }
 
+        // Detectar si es una acción especial (leche fórmula)
+        if (isFormulaAction(actionName)) {
+            selectedFormulaAction = actionName
+            showFormulaModal = true
+            return
+        }
+
         await executeEventRegistration(actionName)
     }
 
@@ -124,6 +136,9 @@
             } else if (additionalData.type === 'height_measurement') {
                 finalActionName = `${actionName} (${additionalData.formatted})`
                 successMessage = `✅ ${actionName} registrado (${additionalData.formatted})`
+            } else if (additionalData.type === 'formula_feeding') {
+                finalActionName = `${actionName} (${additionalData.brand})`
+                successMessage = `✅ ${actionName} registrado (${additionalData.brand})`
             }
         }
         
@@ -171,6 +186,14 @@
             actionName.toLowerCase().includes(keyword)
         )
     }
+
+    // Detectar si una acción es de tipo leche fórmula
+    function isFormulaAction(actionName) {
+        const formulaKeywords = ['leche fórmula', 'formula', 'fórmula']
+        return formulaKeywords.some(keyword => 
+            actionName.toLowerCase().includes(keyword.toLowerCase())
+        )
+    }
     
     // Añadir acciones por defecto para "Mi bebé"
     async function addDefaultBabyActions() {
@@ -180,6 +203,7 @@
             'Se duerme', 
             'Se despierta', 
             'Toma biberón', 
+            'Leche Fórmula',
             'Cambio de pañal (con caca)', 
             'Cambio de pañal (sin caca)', 
             'Peso', 
@@ -589,6 +613,23 @@
         showHeightModal = false
         selectedHeightAction = null
         // No resetear los valores para mantener la última estatura
+    }
+
+    // Funciones para modal de leche fórmula
+    function confirmFormulaEntry() {
+        if (formulaBrand.trim()) {
+            executeEventRegistration(selectedFormulaAction, { 
+                brand: formulaBrand.trim(),
+                type: 'formula_feeding'
+            })
+            closeFormulaModal()
+        }
+    }
+
+    function closeFormulaModal() {
+        showFormulaModal = false
+        selectedFormulaAction = null
+        formulaBrand = ''
     }
 
     // Funciones para drag and drop
@@ -1161,6 +1202,49 @@
                     class="btn btn-primary" 
                     style="background-color: {subject?.color}"
                     on:click={confirmHeightAmount}
+                >
+                    <i class="fa-solid fa-check"></i>
+                    Registrar
+                </button>
+            </div>
+        </div>
+    </div>
+{/if}
+
+<!-- Modal de leche fórmula -->
+{#if showFormulaModal}
+    <div class="modal-overlay" on:click={closeFormulaModal}>
+        <div class="modal-content formula-modal" on:click|stopPropagation>
+            <div class="modal-header">
+                <i class="fa-solid fa-baby formula-icon"></i>
+                <h2>¿Qué leche fórmula tomó?</h2>
+                <p class="subtitle">Acción: <strong>{selectedFormulaAction}</strong></p>
+            </div>
+            <div class="modal-body">
+                <div class="formula-input">
+                    <label for="formula-brand">Marca / Tipo / Etapa:</label>
+                    <input
+                        id="formula-brand"
+                        type="text"
+                        bind:value={formulaBrand}
+                        placeholder="Ej: Almiron Profutura 2"
+                        class="formula-text-input"
+                        on:keydown={(e) => e.key === 'Enter' && confirmFormulaEntry()}
+                    />
+                    <div class="input-hint">
+                        Ejemplo: "Almiron Profutura 2", "NAN 1", "Similac Advance"
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" on:click={closeFormulaModal}>
+                    Cancelar
+                </button>
+                <button 
+                    class="btn btn-primary" 
+                    style="background-color: {subject?.color}"
+                    on:click={confirmFormulaEntry}
+                    disabled={!formulaBrand.trim()}
                 >
                     <i class="fa-solid fa-check"></i>
                     Registrar
@@ -1956,6 +2040,61 @@
         .total-height {
             font-size: 1.5rem;
             min-width: auto;
+        }
+    }
+
+    /* Estilos para modal de leche fórmula */
+    .formula-modal {
+        max-width: 500px;
+    }
+
+    .formula-icon {
+        font-size: 1.5rem;
+        color: #FF9800;
+        margin-bottom: var(--spacing-sm);
+    }
+
+    .formula-input {
+        display: flex;
+        flex-direction: column;
+        gap: var(--spacing-sm);
+    }
+
+    .formula-input label {
+        font-weight: 500;
+        color: var(--dark);
+        font-size: 1rem;
+    }
+
+    .formula-text-input {
+        width: 100%;
+        padding: var(--spacing-md);
+        border: 2px solid var(--light);
+        border-radius: var(--radius-sm);
+        font-size: 1rem;
+        transition: border-color 0.2s ease;
+        box-sizing: border-box;
+    }
+
+    .formula-text-input:focus {
+        outline: none;
+        border-color: var(--primary);
+    }
+
+    .input-hint {
+        font-size: 0.85rem;
+        color: var(--gray-dark);
+        font-style: italic;
+        background: var(--background);
+        padding: var(--spacing-sm);
+        border-radius: var(--radius-sm);
+        border-left: 3px solid #FF9800;
+    }
+
+    /* Responsive para modal de leche fórmula */
+    @media (max-width: 640px) {
+        .formula-modal {
+            margin: var(--spacing-sm);
         }
     }
 

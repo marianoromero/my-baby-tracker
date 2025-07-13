@@ -52,8 +52,11 @@ export const signInWithGoogle = async () => {
   
   // Construir la URL de callback correcta considerando el base path
   const baseUrl = window.location.origin
-  const basePath = import.meta.env.PROD ? '/my-baby-tracker' : ''
+  const isLocalhost = window.location.hostname === 'localhost'
+  const basePath = isLocalhost ? '' : '/my-baby-tracker'
   const redirectUrl = `${baseUrl}${basePath}/auth/callback`
+  
+  console.log('Redirect URL:', redirectUrl) // Para debug
   
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: 'google',

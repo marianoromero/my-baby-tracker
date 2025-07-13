@@ -6,5 +6,8 @@ export const supabase = createClient(PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON_K
   auth: {
     persistSession: true,
     autoRefreshToken: true,
+    redirectTo: typeof window !== 'undefined' && window.location.hostname === 'localhost' 
+      ? 'http://localhost:5174/auth/callback'
+      : undefined
   }
 })
