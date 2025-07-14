@@ -86,8 +86,20 @@
     
     // Registrar un evento
     async function registerEvent(actionName) {
+        console.log('Registering event for action:', actionName)
+        
+        // IMPORTANTE: Detectar leche fórmula ANTES que biberón para evitar conflictos
+        // Detectar si es una acción especial (leche fórmula)
+        if (isFormulaAction(actionName)) {
+            console.log('Detected formula action:', actionName)
+            selectedFormulaAction = actionName
+            showFormulaModal = true
+            return
+        }
+
         // Detectar si es una acción especial (biberón)
         if (isBottleAction(actionName)) {
+            console.log('Detected bottle action:', actionName)
             selectedBottleAction = actionName
             showBottleModal = true
             return
@@ -106,13 +118,6 @@
             selectedHeightAction = actionName
             await loadLastHeight() // Cargar última estatura registrada
             showHeightModal = true
-            return
-        }
-
-        // Detectar si es una acción especial (leche fórmula)
-        if (isFormulaAction(actionName)) {
-            selectedFormulaAction = actionName
-            showFormulaModal = true
             return
         }
 
@@ -166,9 +171,16 @@
 
     // Detectar si una acción es de tipo biberón
     function isBottleAction(actionName) {
-        const bottleKeywords = ['biber', 'bibi', 'botella', 'milk', 'leche', 'formula']
+        const actionLower = actionName.toLowerCase()
+        
+        // Excluir explícitamente acciones de leche fórmula
+        if (actionLower.includes('fórmula') || actionLower.includes('formula') || actionLower.includes('compra')) {
+            return false
+        }
+        
+        const bottleKeywords = ['biber', 'bibi', 'botella', 'toma', 'tomar']
         return bottleKeywords.some(keyword => 
-            actionName.toLowerCase().includes(keyword)
+            actionLower.includes(keyword)
         )
     }
 
@@ -190,10 +202,18 @@
 
     // Detectar si una acción es de tipo leche fórmula
     function isFormulaAction(actionName) {
-        const formulaKeywords = ['compra leche fórmula', 'leche fórmula', 'formula', 'fórmula']
+        const actionLower = actionName.toLowerCase()
+        
+        // Detectar específicamente acciones de compra de leche fórmula
+        const formulaKeywords = ['compra leche fórmula', 'leche fórmula', 'compra fórmula']
+        
+        // También detectar si contiene "fórmula" Y ("compra" O "leche")
+        const hasFormula = actionLower.includes('fórmula') || actionLower.includes('formula')
+        const hasCompraOrLeche = actionLower.includes('compra') || actionLower.includes('leche')
+        
         return formulaKeywords.some(keyword => 
-            actionName.toLowerCase().includes(keyword.toLowerCase())
-        )
+            actionLower.includes(keyword)
+        ) || (hasFormula && hasCompraOrLeche)
     }
     
     // Añadir acciones por defecto para "Mi bebé"
@@ -1222,7 +1242,7 @@
         <div class="modal-content formula-modal" on:click|stopPropagation>
             <div class="modal-header">
                 <i class="fa-solid fa-baby formula-icon"></i>
-                <h2>¿Qué leche fórmula tomó?</h2>
+                <h2>¿Qué leche fórmula has comprado?</h2>
                 <p class="subtitle">Acción: <strong>{selectedFormulaAction}</strong></p>
             </div>
             <div class="modal-body">
@@ -1235,9 +1255,7 @@
                         placeholder="Ej: Almiron Profutura 2"
                         class="formula-text-input"
                     />
-                    <div class="input-hint">
-                        Ejemplo: "Almiron Profutura 2", "NAN 1", "Similac Advance"
-                    </div>
+                  
                 </div>
 
                 <div class="formula-input">

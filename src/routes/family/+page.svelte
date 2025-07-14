@@ -16,6 +16,11 @@
   let newMemberIcon = 'fa-user'
   let newMemberColor = '#45B7D1'
   let isAdmin = false
+  
+  // Variables para modal de eliminación
+  let showDeleteModal = false
+  let memberToDelete = null
+  let deleteWithEvents = false // false = solo miembro, true = miembro + eventos
 
   // Verificar status de admin al cargar la página
   $: if ($user && $family) {
@@ -66,18 +71,29 @@
     }
   }
 
+  // Mostrar modal de confirmación de eliminación
+  function showDeleteConfirmation(subject) {
+    memberToDelete = subject
+    deleteWithEvents = false // Por defecto, solo eliminar miembro
+    showDeleteModal = true
+  }
+
+  // Cerrar modal de eliminación
+  function closeDeleteModal() {
+    showDeleteModal = false
+    memberToDelete = null
+    deleteWithEvents = false
+  }
+
   // Función para eliminar un miembro (solo admins)
-  async function deleteMember(subjectId, subjectName) {
+  async function deleteMember() {
+    if (!memberToDelete) return
+
     // Verificar permisos de admin
     const userIsAdmin = await isUserAdmin()
     if (!userIsAdmin) {
       error = 'Solo los administradores pueden eliminar miembros'
-      return
-    }
-
-    // Mostrar confirmación
-    const confirmed = confirm(`¿Estás seguro de que quieres eliminar a "${subjectName}" de la familia?\n\nNota: Los eventos ya registrados por este miembro se conservarán en el historial familiar.`)
-    if (!confirmed) {
+      closeDeleteModal()
       return
     }
 
@@ -85,29 +101,13 @@
     error = null
 
     try {
-      console.log('Eliminando miembro:', subjectId, subjectName)
+      console.log('Eliminando miembro:', memberToDelete.id, memberToDelete.name)
 
-      // Primero, verificar si el miembro tiene eventos registrados
-      const { data: eventsData, error: eventsCheckError } = await supabase
-        .from('events')
-        .select('id')
-        .eq('subject_id', subjectId)
-        .limit(1)
-
-      if (eventsCheckError) {
-        console.error('Error verificando eventos:', eventsCheckError)
-        error = 'Error al verificar el historial del miembro'
-        return
-      }
-
-      const hasEvents = eventsData && eventsData.length > 0
-
-      // Solo eliminar las acciones del sujeto (las plantillas de acciones)
-      // Los eventos se conservan para mantener el historial
+      // Eliminar las acciones del sujeto (plantillas de acciones)
       const { error: actionsError } = await supabase
         .from('actions')
         .delete()
-        .eq('subject_id', subjectId)
+        .eq('subject_id', memberToDelete.id)
 
       if (actionsError) {
         console.error('Error eliminando acciones:', actionsError)
@@ -115,11 +115,25 @@
         return
       }
 
+      // Si se eligió eliminar también los eventos
+      if (deleteWithEvents) {
+        const { error: eventsError } = await supabase
+          .from('events')
+          .delete()
+          .eq('subject_id', memberToDelete.id)
+
+        if (eventsError) {
+          console.error('Error eliminando eventos:', eventsError)
+          error = 'Error al eliminar los eventos del miembro'
+          return
+        }
+      }
+
       // Eliminar el sujeto/miembro
       const { error: subjectError } = await supabase
         .from('subjects')
         .delete()
-        .eq('id', subjectId)
+        .eq('id', memberToDelete.id)
 
       if (subjectError) {
         console.error('Error eliminando sujeto:', subjectError)
@@ -131,26 +145,26 @@
 
       // Actualizar el store local
       subjects.update(currentSubjects => 
-        currentSubjects.filter(subject => subject.id !== subjectId)
+        currentSubjects.filter(subject => subject.id !== memberToDelete.id)
       )
 
-      // Mostrar mensaje de éxito con información sobre los eventos
-      if (hasEvents) {
-        success = true
-        setTimeout(() => {
-          alert(`${subjectName} ha sido eliminado de la familia.\n\nLos eventos registrados por este miembro se han conservado en el historial familiar.`)
-          success = false
-        }, 100)
-      } else {
-        success = true
-        setTimeout(() => {
-          success = false
-        }, 3000)
-      }
+      // Mostrar mensaje de éxito
+      const message = deleteWithEvents 
+        ? `${memberToDelete.name} y todos sus eventos han sido eliminados de la familia.`
+        : `${memberToDelete.name} ha sido eliminado de la familia. Sus eventos se mantienen en el historial.`
+      
+      success = true
+      setTimeout(() => {
+        alert(message)
+        success = false
+      }, 100)
+
+      closeDeleteModal()
 
     } catch (err) {
       console.error('Error:', err)
       error = 'Error inesperado: ' + err.message
+      closeDeleteModal()
     } finally {
       loading = false
     }
@@ -583,6 +597,17 @@
                       Soy yo
                     </button>
                   {/if}
+
+                  {#if isAdmin}
+                    <button 
+                      class="delete-btn"
+                      on:click={() => showDeleteConfirmation(subject)}
+                      disabled={loading}
+                    >
+                      <i class="fa-solid fa-trash"></i>
+                      Eliminar
+                    </button>
+                  {/if}
                 </div>
               {/if}
             </div>
@@ -592,6 +617,84 @@
     </div>
   </main>
 </div>
+
+<!-- Modal de confirmación de eliminación -->
+{#if showDeleteModal && memberToDelete}
+  <div class="modal-overlay" on:click={closeDeleteModal}>
+    <div class="modal-content delete-modal" on:click|stopPropagation>
+      <div class="modal-header">
+        <i class="fa-solid fa-exclamation-triangle warning-icon"></i>
+        <h2>Eliminar Miembro</h2>
+      </div>
+      
+      <div class="modal-body">
+        <div class="member-preview-delete">
+          <div class="preview-icon-delete" style="background-color: {memberToDelete.color}">
+            <i class="fa-solid {memberToDelete.icon}"></i>
+          </div>
+          <div class="member-name-delete">
+            <strong>{memberToDelete.name}</strong>
+          </div>
+        </div>
+
+        <p class="warning-text">¿Estás seguro de que quieres eliminar a <strong>"{memberToDelete.name}"</strong> de la familia?</p>
+        
+        <div class="delete-options">
+          <label class="delete-option">
+            <input 
+              type="radio" 
+              bind:group={deleteWithEvents} 
+              value={false}
+              name="deleteOption"
+            />
+            <div class="option-content">
+              <div class="option-title">
+                <i class="fa-solid fa-user-minus"></i>
+                Eliminar solo el miembro
+              </div>
+              <div class="option-description">
+                Se elimina el miembro de la familia, pero se mantienen todos sus eventos registrados en el timeline.
+              </div>
+            </div>
+          </label>
+
+          <label class="delete-option">
+            <input 
+              type="radio" 
+              bind:group={deleteWithEvents} 
+              value={true}
+              name="deleteOption"
+            />
+            <div class="option-content">
+              <div class="option-title">
+                <i class="fa-solid fa-trash-alt"></i>
+                Eliminar miembro y todos sus eventos
+              </div>
+              <div class="option-description">
+                Se elimina el miembro y TODOS sus eventos del timeline. Esta acción no se puede deshacer.
+              </div>
+            </div>
+          </label>
+        </div>
+      </div>
+      
+      <div class="modal-footer">
+        <button class="btn-secondary" on:click={closeDeleteModal} disabled={loading}>
+          Cancelar
+        </button>
+        <button class="btn-danger" on:click={deleteMember} disabled={loading}>
+          {#if loading}
+            <i class="fa-solid fa-spinner fa-spin"></i>
+            Eliminando...
+          {:else}
+            <i class="fa-solid fa-trash"></i>
+            Eliminar
+          {/if}
+        </button>
+      </div>
+    </div>
+  </div>
+{/if}
 
 <style>
   .container {
@@ -810,7 +913,7 @@
     gap: var(--spacing-sm);
   }
 
-  .edit-btn, .link-btn {
+  .edit-btn, .link-btn, .delete-btn {
     padding: var(--spacing-sm) var(--spacing-md);
     border: 1px solid;
     border-radius: var(--radius-md);
@@ -841,6 +944,22 @@
 
   .link-btn:hover:not(:disabled) {
     background: var(--primary-dark);
+  }
+
+  .delete-btn {
+    background: #fee;
+    border-color: #fcc;
+    color: #c33;
+  }
+
+  .delete-btn:hover:not(:disabled) {
+    background: #fcc;
+    border-color: #c33;
+  }
+
+  .delete-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
   }
 
   .edit-form {
@@ -1062,6 +1181,172 @@
     cursor: not-allowed;
   }
 
+  /* Delete Modal Styles */
+  .modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    padding: var(--spacing-md);
+  }
+
+  .modal-content {
+    background: var(--white);
+    border-radius: var(--radius-lg);
+    max-width: 500px;
+    width: 100%;
+    max-height: 90vh;
+    overflow-y: auto;
+    box-shadow: var(--shadow-lg);
+  }
+
+  .delete-modal {
+    border-top: 4px solid #c33;
+  }
+
+  .modal-header {
+    padding: var(--spacing-lg) var(--spacing-lg) var(--spacing-md);
+    text-align: center;
+    border-bottom: 1px solid var(--gray-light);
+  }
+
+  .warning-icon {
+    font-size: 3rem;
+    color: #f39c12;
+    margin-bottom: var(--spacing-sm);
+  }
+
+  .modal-header h2 {
+    margin: 0;
+    color: #c33;
+    font-size: 1.5rem;
+  }
+
+  .modal-body {
+    padding: var(--spacing-lg);
+  }
+
+  .member-preview-delete {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-md);
+    padding: var(--spacing-md);
+    background: var(--gray-light);
+    border-radius: var(--radius-md);
+    margin-bottom: var(--spacing-md);
+  }
+
+  .preview-icon-delete {
+    width: 50px;
+    height: 50px;
+    border-radius: var(--radius-lg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--white);
+    font-size: 1.3rem;
+    flex-shrink: 0;
+  }
+
+  .member-name-delete strong {
+    font-size: 1.1rem;
+    color: var(--black);
+  }
+
+  .warning-text {
+    margin: var(--spacing-md) 0;
+    text-align: center;
+    color: var(--gray-dark);
+    line-height: 1.5;
+  }
+
+  .delete-options {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-sm);
+  }
+
+  .delete-option {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--spacing-sm);
+    padding: var(--spacing-md);
+    border: 2px solid var(--gray-light);
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+
+  .delete-option:hover {
+    border-color: var(--primary);
+    background: rgba(27, 127, 121, 0.05);
+  }
+
+  .delete-option input[type="radio"] {
+    margin-top: 2px;
+    accent-color: var(--primary);
+  }
+
+  .option-content {
+    flex: 1;
+  }
+
+  .option-title {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+    font-weight: 600;
+    color: var(--black);
+    margin-bottom: var(--spacing-xs);
+  }
+
+  .option-title i {
+    color: var(--primary);
+  }
+
+  .option-description {
+    font-size: 0.9rem;
+    color: var(--gray-dark);
+    line-height: 1.4;
+  }
+
+  .modal-footer {
+    padding: var(--spacing-md) var(--spacing-lg) var(--spacing-lg);
+    display: flex;
+    gap: var(--spacing-sm);
+    justify-content: flex-end;
+    border-top: 1px solid var(--gray-light);
+  }
+
+  .btn-danger {
+    background: #c33;
+    color: var(--white);
+    border: none;
+    border-radius: var(--radius-md);
+    padding: var(--spacing-sm) var(--spacing-lg);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+    font-size: 0.9rem;
+    transition: all 0.2s ease;
+  }
+
+  .btn-danger:hover:not(:disabled) {
+    background: #a22;
+  }
+
+  .btn-danger:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+
   /* Responsive */
   @media (max-width: 640px) {
     main {
@@ -1095,7 +1380,7 @@
       align-self: stretch;
     }
 
-    .edit-btn, .link-btn {
+    .edit-btn, .link-btn, .delete-btn {
       flex: 1;
       justify-content: center;
     }
@@ -1106,6 +1391,79 @@
 
     .btn-primary, .btn-secondary {
       justify-content: center;
+    }
+
+    /* Mobile modal improvements */
+    .modal-overlay {
+      padding: var(--spacing-sm);
+      align-items: flex-start;
+      padding-top: 10vh;
+    }
+
+    .modal-content {
+      max-height: 85vh;
+    }
+
+    .modal-header {
+      padding: var(--spacing-md);
+    }
+
+    .warning-icon {
+      font-size: 2.5rem;
+    }
+
+    .modal-header h2 {
+      font-size: 1.3rem;
+    }
+
+    .modal-body {
+      padding: var(--spacing-md);
+    }
+
+    .member-preview-delete {
+      padding: var(--spacing-sm);
+    }
+
+    .preview-icon-delete {
+      width: 40px;
+      height: 40px;
+      font-size: 1.1rem;
+    }
+
+    .delete-option {
+      padding: var(--spacing-sm);
+    }
+
+    .option-title {
+      font-size: 0.9rem;
+    }
+
+    .option-description {
+      font-size: 0.8rem;
+    }
+
+    .modal-footer {
+      padding: var(--spacing-sm) var(--spacing-md) var(--spacing-md);
+      flex-direction: column-reverse;
+    }
+
+    .btn-danger, .btn-secondary {
+      justify-content: center;
+      width: 100%;
+    }
+
+    .edit-form {
+      flex-direction: column;
+      gap: var(--spacing-sm);
+      align-items: stretch;
+    }
+
+    .name-input {
+      margin-bottom: var(--spacing-sm);
+    }
+
+    .edit-actions {
+      align-self: center;
     }
   }
 </style>
