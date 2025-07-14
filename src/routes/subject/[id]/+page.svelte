@@ -56,7 +56,8 @@
     // Variables para modal de leche fórmula
     let showFormulaModal = false
     let selectedFormulaAction = null
-    let formulaBrand = '' // Marca/Tipo/Etapa (texto libre)
+    let formulaBrand = '' // Marca/Tipo/Etapa (ej: Almiron Profutura 2)
+    let formulaGrams = 800 // Cantidad en gramos por defecto
     
     // Cargar datos del sujeto y sus acciones
     $: {
@@ -137,8 +138,8 @@
                 finalActionName = `${actionName} (${additionalData.formatted})`
                 successMessage = `✅ ${actionName} registrado (${additionalData.formatted})`
             } else if (additionalData.type === 'formula_feeding') {
-                finalActionName = `${actionName} (${additionalData.brand})`
-                successMessage = `✅ ${actionName} registrado (${additionalData.brand})`
+                finalActionName = `${actionName} (${additionalData.formatted})`
+                successMessage = `✅ ${actionName} registrado (${additionalData.formatted})`
             }
         }
         
@@ -189,7 +190,7 @@
 
     // Detectar si una acción es de tipo leche fórmula
     function isFormulaAction(actionName) {
-        const formulaKeywords = ['leche fórmula', 'formula', 'fórmula']
+        const formulaKeywords = ['compra leche fórmula', 'leche fórmula', 'formula', 'fórmula']
         return formulaKeywords.some(keyword => 
             actionName.toLowerCase().includes(keyword.toLowerCase())
         )
@@ -203,7 +204,7 @@
             'Se duerme', 
             'Se despierta', 
             'Toma biberón', 
-            'Leche Fórmula',
+            'Compra Leche Fórmula',
             'Cambio de pañal (con caca)', 
             'Cambio de pañal (sin caca)', 
             'Peso', 
@@ -617,9 +618,12 @@
 
     // Funciones para modal de leche fórmula
     function confirmFormulaEntry() {
-        if (formulaBrand.trim()) {
+        if (formulaBrand.trim() && formulaGrams > 0) {
+            const formulaDetails = `${formulaBrand.trim()} - ${formulaGrams}g`
             executeEventRegistration(selectedFormulaAction, { 
                 brand: formulaBrand.trim(),
+                grams: formulaGrams,
+                formatted: formulaDetails,
                 type: 'formula_feeding'
             })
             closeFormulaModal()
@@ -630,6 +634,7 @@
         showFormulaModal = false
         selectedFormulaAction = null
         formulaBrand = ''
+        formulaGrams = 800
     }
 
     // Funciones para drag and drop
@@ -1229,10 +1234,38 @@
                         bind:value={formulaBrand}
                         placeholder="Ej: Almiron Profutura 2"
                         class="formula-text-input"
-                        on:keydown={(e) => e.key === 'Enter' && confirmFormulaEntry()}
                     />
                     <div class="input-hint">
                         Ejemplo: "Almiron Profutura 2", "NAN 1", "Similac Advance"
+                    </div>
+                </div>
+
+                <div class="formula-input">
+                    <label for="formula-grams">Cantidad (gramos):</label>
+                    <div class="grams-input-group">
+                        <input
+                            id="formula-grams"
+                            type="number"
+                            bind:value={formulaGrams}
+                            min="50"
+                            max="2000"
+                            step="50"
+                            class="formula-grams-input"
+                            on:keydown={(e) => e.key === 'Enter' && confirmFormulaEntry()}
+                        />
+                        <span class="grams-suffix">g</span>
+                    </div>
+                    <div class="grams-presets">
+                        {#each [400, 800, 1200] as preset}
+                            <button 
+                                type="button"
+                                class="grams-preset-btn"
+                                class:selected={formulaGrams === preset}
+                                on:click={() => formulaGrams = preset}
+                            >
+                                {preset}g
+                            </button>
+                        {/each}
                     </div>
                 </div>
             </div>
@@ -1244,7 +1277,7 @@
                     class="btn btn-primary" 
                     style="background-color: {subject?.color}"
                     on:click={confirmFormulaEntry}
-                    disabled={!formulaBrand.trim()}
+                    disabled={!formulaBrand.trim() || formulaGrams <= 0}
                 >
                     <i class="fa-solid fa-check"></i>
                     Registrar
@@ -2089,6 +2122,68 @@
         padding: var(--spacing-sm);
         border-radius: var(--radius-sm);
         border-left: 3px solid #FF9800;
+    }
+
+    .grams-input-group {
+        display: flex;
+        align-items: center;
+        border: 2px solid var(--light);
+        border-radius: var(--radius-sm);
+        background: var(--white);
+        transition: border-color 0.2s ease;
+    }
+
+    .grams-input-group:focus-within {
+        border-color: var(--primary);
+    }
+
+    .formula-grams-input {
+        border: none;
+        padding: var(--spacing-md);
+        font-size: 1rem;
+        flex: 1;
+        background: transparent;
+        text-align: center;
+    }
+
+    .formula-grams-input:focus {
+        outline: none;
+    }
+
+    .grams-suffix {
+        padding: var(--spacing-md);
+        color: var(--gray-dark);
+        font-weight: 500;
+        border-left: 1px solid var(--light);
+        background: var(--background);
+    }
+
+    .grams-presets {
+        display: flex;
+        gap: var(--spacing-xs);
+        margin-top: var(--spacing-sm);
+    }
+
+    .grams-preset-btn {
+        padding: var(--spacing-xs) var(--spacing-sm);
+        border: 2px solid var(--light);
+        background: var(--white);
+        color: var(--gray-dark);
+        border-radius: var(--radius-sm);
+        font-size: 0.9rem;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+
+    .grams-preset-btn:hover {
+        border-color: var(--primary);
+        background: var(--background);
+    }
+
+    .grams-preset-btn.selected {
+        border-color: #FF9800;
+        background: #FF9800;
+        color: var(--white);
     }
 
     /* Responsive para modal de leche fórmula */

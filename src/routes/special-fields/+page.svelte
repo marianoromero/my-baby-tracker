@@ -51,13 +51,17 @@
         },
         {
             id: 'formula_feeding',
-            name: 'Leche Fórmula',
+            name: 'Compra Leche Fórmula',
             icon: 'fa-baby',
-            description: 'Marca, tipo y etapa de la fórmula',
-            type: 'text',
+            description: 'Marca, tipo, etapa y cantidad en gramos',
+            type: 'combined',
             inputOptions: {
-                placeholder: 'Ej: Almiron Profutura 2',
-                suggestions: ['Almiron Profutura 2', 'NAN 1', 'Similac Advance', 'Enfamil Premium']
+                brandPlaceholder: 'Ej: Almiron Profutura 2',
+                brandSuggestions: ['Almiron Profutura 2', 'NAN 1', 'Similac Advance', 'Enfamil Premium'],
+                gramsDefault: 800,
+                gramsPresets: [400, 800, 1200],
+                gramsMin: 50,
+                gramsMax: 2000
             }
         }
     ]
@@ -68,7 +72,12 @@
     
     // Cargar configuraciones existentes
     async function loadConfigurations() {
-        if (!$family) return
+        if (!$family) {
+            console.log('No family found, skipping configuration load')
+            return
+        }
+        
+        console.log('Loading configurations for family:', $family.id)
         
         try {
             const { data, error } = await supabase
@@ -76,11 +85,16 @@
                 .select('*')
                 .eq('family_id', $family.id)
             
-            if (error) throw error
+            if (error) {
+                console.error('Supabase error:', error)
+                throw error
+            }
+            
+            console.log('Loaded special action configs:', data)
             
             // Organizar configuraciones por tipo especial
             const configsByType = {}
-            if (data) {
+            if (data && data.length > 0) {
                 data.forEach(config => {
                     if (!configsByType[config.special_type]) {
                         configsByType[config.special_type] = []
@@ -90,108 +104,156 @@
             }
             
             // Inicializar configuraciones para cada campo especial
+            const newConfigurations = {}
             specialFields.forEach(field => {
-                configurations[field.id] = {
-                    enabled: configsByType[field.id] ? true : false,
+                const hasConfigs = configsByType[field.id] && configsByType[field.id].length > 0
+                newConfigurations[field.id] = {
+                    enabled: hasConfigs,
                     subjects: configsByType[field.id] || [],
-                    subjectIds: configsByType[field.id] ? configsByType[field.id].map(c => c.action_id) : [],
+                    subjectIds: hasConfigs ? [...new Set(configsByType[field.id].map(c => c.action_id))] : [],
                     defaultOptions: field.inputOptions
                 }
             })
             
+            configurations = newConfigurations
             loading = false
+            
+            console.log('Final configurations:', configurations)
+            
         } catch (error) {
             console.error('Error cargando configuraciones:', error)
+            // Inicializar configuraciones vacías en caso de error
+            const emptyConfigurations = {}
+            specialFields.forEach(field => {
+                emptyConfigurations[field.id] = {
+                    enabled: false,
+                    subjects: [],
+                    subjectIds: [],
+                    defaultOptions: field.inputOptions
+                }
+            })
+            configurations = emptyConfigurations
             loading = false
         }
     }
     
     // Guardar configuración de un campo especial
     async function saveFieldConfiguration(fieldId) {
-        if (!$family || saving) return
+        if (!$family || saving) {
+            console.log('Cannot save - no family or already saving')
+            return
+        }
         
         saving = true
         const config = configurations[fieldId]
         
+        console.log('Saving configuration for field:', fieldId, config)
+        
         try {
-            // Primero eliminar configuraciones existentes para este tipo
-            await supabase
-                .from('special_action_configs')
-                .delete()
-                .eq('family_id', $family.id)
-                .eq('special_type', fieldId)
-            
-            // Si está habilitado y hay sujetos seleccionados, crear nuevas configuraciones
+            // Si se está habilitando y hay sujetos seleccionados, crear las acciones automáticamente
             if (config.enabled && config.subjectIds.length > 0) {
-                const configsToInsert = []
-                
-                // Para cada sujeto seleccionado, buscar sus acciones relevantes
-                for (const subjectId of config.subjectIds) {
-                    const field = specialFields.find(f => f.id === fieldId)
-                    
-                    // Buscar acciones que coincidan con este tipo especial
-                    const { data: actions, error: actionsError } = await supabase
-                        .from('actions')
-                        .select('id, name')
-                        .eq('subject_id', subjectId)
-                    
-                    if (actionsError) throw actionsError
-                    
-                    // Filtrar acciones que coincidan con las palabras clave del campo especial
-                    const relevantActions = actions.filter(action => {
-                        const actionName = action.name.toLowerCase()
-                        switch (fieldId) {
-                            case 'bottle_feeding':
-                                return ['biber', 'bibi', 'botella', 'milk', 'leche', 'formula'].some(keyword => 
-                                    actionName.includes(keyword) && !actionName.includes('fórmula'))
-                            case 'weight_measurement':
-                                return ['peso', 'weight', 'kg', 'kilo', 'pesaje', 'pesa'].some(keyword => 
-                                    actionName.includes(keyword))
-                            case 'height_measurement':
-                                return ['estatura', 'altura', 'height', 'tall', 'talla', 'medir', 'medida'].some(keyword => 
-                                    actionName.includes(keyword))
-                            case 'formula_feeding':
-                                return ['leche fórmula', 'formula', 'fórmula'].some(keyword => 
-                                    actionName.includes(keyword.toLowerCase()))
-                            default:
-                                return false
-                        }
-                    })
-                    
-                    // Crear configuraciones para cada acción relevante
-                    relevantActions.forEach(action => {
-                        configsToInsert.push({
-                            family_id: $family.id,
-                            action_id: action.id,
-                            special_type: fieldId,
-                            config_data: config.defaultOptions
-                        })
-                    })
-                }
-                
-                if (configsToInsert.length > 0) {
-                    const { error: insertError } = await supabase
-                        .from('special_action_configs')
-                        .insert(configsToInsert)
-                    
-                    if (insertError) throw insertError
-                }
+                await createActionsForEnabledField(fieldId, config.subjectIds)
             }
             
-            showNotification('✅ Configuración guardada')
-            await loadConfigurations() // Recargar configuraciones
+            // Actualizar configuración local
+            configurations[fieldId] = {
+                ...config,
+                enabled: config.enabled
+            }
+            configurations = { ...configurations }
+            
+            showNotification('✅ Configuración guardada y acciones creadas')
             
         } catch (error) {
             console.error('Error guardando configuración:', error)
-            showNotification('❌ Error al guardar la configuración')
+            showNotification(`❌ Error al guardar: ${error.message}`)
+            // Revertir el estado del toggle
+            configurations[fieldId].enabled = !configurations[fieldId].enabled
+            configurations = { ...configurations }
         } finally {
             saving = false
+        }
+    }
+
+    // Crear acciones automáticamente para un campo especial habilitado
+    async function createActionsForEnabledField(fieldId, subjectIds) {
+        const field = specialFields.find(f => f.id === fieldId)
+        if (!field) return
+
+        const actionNamesToCreate = getActionNamesForField(fieldId)
+        
+        for (const subjectId of subjectIds) {
+            // Verificar qué acciones ya existen para este sujeto
+            const { data: existingActions, error: fetchError } = await supabase
+                .from('actions')
+                .select('name')
+                .eq('subject_id', subjectId)
+            
+            if (fetchError) {
+                console.error('Error fetching existing actions:', fetchError)
+                continue
+            }
+
+            const existingActionNames = existingActions ? existingActions.map(a => a.name) : []
+            
+            // Filtrar acciones que no existen aún
+            const actionsToCreate = actionNamesToCreate.filter(actionName => 
+                !existingActionNames.includes(actionName)
+            )
+
+            if (actionsToCreate.length > 0) {
+                // Obtener el próximo sort_order
+                const { data: maxSortData, error: sortError } = await supabase
+                    .from('actions')
+                    .select('sort_order')
+                    .eq('subject_id', subjectId)
+                    .order('sort_order', { ascending: false })
+                    .limit(1)
+
+                const maxSortOrder = (maxSortData && maxSortData.length > 0) ? maxSortData[0].sort_order || 0 : 0
+
+                // Crear las acciones
+                const actionsToInsert = actionsToCreate.map((actionName, index) => ({
+                    subject_id: subjectId,
+                    name: actionName,
+                    sort_order: maxSortOrder + 1 + index
+                }))
+
+                const { error: insertError } = await supabase
+                    .from('actions')
+                    .insert(actionsToInsert)
+
+                if (insertError) {
+                    console.error('Error inserting actions:', insertError)
+                    throw insertError
+                }
+
+                console.log(`Created ${actionsToCreate.length} actions for subject ${subjectId}`)
+            }
+        }
+    }
+
+    // Obtener los nombres de acciones que se deben crear para cada tipo de campo
+    function getActionNamesForField(fieldId) {
+        switch (fieldId) {
+            case 'bottle_feeding':
+                return ['Toma biberón']
+            case 'weight_measurement':
+                return ['Peso']
+            case 'height_measurement':
+                return ['Estatura']
+            case 'formula_feeding':
+                return ['Compra Leche Fórmula']
+            default:
+                return []
         }
     }
     
     // Alternar selección de sujeto
     function toggleSubjectForField(fieldId, subjectId) {
         const config = configurations[fieldId]
+        if (!config) return
+        
         const index = config.subjectIds.indexOf(subjectId)
         
         if (index === -1) {
@@ -201,6 +263,9 @@
         }
         
         configurations[fieldId] = { ...config }
+        configurations = { ...configurations }
+        
+        console.log('Updated subject selection for', fieldId, config.subjectIds)
     }
     
     // Mostrar notificación temporal
@@ -219,10 +284,25 @@
     }
     
     onMount(() => {
-        loadConfigurations()
+        if ($family) {
+            loadConfigurations()
+        } else {
+            // Inicializar configuraciones vacías si no hay familia
+            const emptyConfigurations = {}
+            specialFields.forEach(field => {
+                emptyConfigurations[field.id] = {
+                    enabled: false,
+                    subjects: [],
+                    subjectIds: [],
+                    defaultOptions: field.inputOptions
+                }
+            })
+            configurations = emptyConfigurations
+            loading = false
+        }
     })
     
-    $: if ($family && $subjects) {
+    $: if ($family && $subjects && Object.keys(configurations).length === 0) {
         loadConfigurations()
     }
 </script>
@@ -260,15 +340,21 @@
                             <label class="toggle">
                                 <input
                                     type="checkbox"
-                                    bind:checked={configurations[field.id].enabled}
-                                    on:change={() => saveFieldConfiguration(field.id)}
+                                    checked={configurations[field.id]?.enabled || false}
+                                    on:change={(e) => {
+                                        if (configurations[field.id]) {
+                                            configurations[field.id].enabled = e.target.checked
+                                            configurations = { ...configurations }
+                                            saveFieldConfiguration(field.id)
+                                        }
+                                    }}
                                     disabled={saving}
                                 />
                                 <span class="toggle-slider"></span>
                             </label>
                         </div>
 
-                        {#if configurations[field.id].enabled}
+                        {#if configurations[field.id]?.enabled}
                             <div class="field-content">
                                 <div class="subjects-selection">
                                     <h4>Disponible para:</h4>
@@ -277,7 +363,7 @@
                                             <label class="subject-option">
                                                 <input
                                                     type="checkbox"
-                                                    checked={configurations[field.id].subjectIds.includes(subject.id)}
+                                                    checked={configurations[field.id]?.subjectIds?.includes(subject.id) || false}
                                                     on:change={() => {
                                                         toggleSubjectForField(field.id, subject.id)
                                                         saveFieldConfiguration(field.id)
@@ -319,6 +405,28 @@
                                                         <span class="suggestion-badge">{suggestion}</span>
                                                     {/each}
                                                 </div>
+                                            </div>
+                                        </div>
+                                    {:else if field.type === 'combined'}
+                                        <div class="combined-options">
+                                            <div class="combined-section">
+                                                <label>Marcas sugeridas:</label>
+                                                <div class="suggestion-values">
+                                                    {#each field.inputOptions.brandSuggestions as suggestion}
+                                                        <span class="suggestion-badge">{suggestion}</span>
+                                                    {/each}
+                                                </div>
+                                            </div>
+                                            <div class="combined-section">
+                                                <label>Cantidades predefinidas:</label>
+                                                <div class="preset-values">
+                                                    {#each field.inputOptions.gramsPresets as preset}
+                                                        <span class="preset-badge">{preset}g</span>
+                                                    {/each}
+                                                </div>
+                                            </div>
+                                            <div class="combined-section">
+                                                <label>Cantidad por defecto: {field.inputOptions.gramsDefault}g</label>
                                             </div>
                                         </div>
                                     {:else if field.type === 'range'}
@@ -567,10 +675,17 @@
 
     .number-options,
     .text-options,
-    .range-options {
+    .range-options,
+    .combined-options {
         display: flex;
         flex-direction: column;
         gap: var(--spacing-sm);
+    }
+
+    .combined-section {
+        display: flex;
+        flex-direction: column;
+        gap: var(--spacing-xs);
     }
 
     .presets,
