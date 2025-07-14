@@ -4,7 +4,7 @@
     import { goto } from '$app/navigation'
     import { base } from '$app/paths'
     import { user } from '$lib/stores/auth'
-    import { family, subjects } from '$lib/stores/family'
+    import { family, subjects, actions } from '$lib/stores/family'
     import { supabase } from '$lib/supabase'
     
     let specialFields = [
@@ -150,9 +150,13 @@
         console.log('Saving configuration for field:', fieldId, config)
         
         try {
+            let actionsCreated = 0
+            
             // Si se está habilitando y hay sujetos seleccionados, crear las acciones automáticamente
             if (config.enabled && config.subjectIds.length > 0) {
-                await createActionsForEnabledField(fieldId, config.subjectIds)
+                console.log('Creating actions for enabled field:', fieldId, 'subjects:', config.subjectIds)
+                actionsCreated = await createActionsForEnabledField(fieldId, config.subjectIds)
+                console.log('Total actions created:', actionsCreated)
             }
             
             // Actualizar configuración local
@@ -162,7 +166,13 @@
             }
             configurations = { ...configurations }
             
-            showNotification('✅ Configuración guardada y acciones creadas')
+            if (config.enabled && actionsCreated > 0) {
+                showNotification(`✅ Configuración guardada y ${actionsCreated} acciones creadas`)
+            } else if (config.enabled) {
+                showNotification('✅ Configuración guardada (acciones ya existían)')
+            } else {
+                showNotification('✅ Configuración guardada')
+            }
             
         } catch (error) {
             console.error('Error guardando configuración:', error)
@@ -178,9 +188,10 @@
     // Crear acciones automáticamente para un campo especial habilitado
     async function createActionsForEnabledField(fieldId, subjectIds) {
         const field = specialFields.find(f => f.id === fieldId)
-        if (!field) return
+        if (!field) return 0
 
         const actionNamesToCreate = getActionNamesForField(fieldId)
+        let totalActionsCreated = 0
         
         for (const subjectId of subjectIds) {
             // Verificar qué acciones ya existen para este sujeto
@@ -219,18 +230,39 @@
                     sort_order: maxSortOrder + 1 + index
                 }))
 
-                const { error: insertError } = await supabase
+                const { data: insertedActions, error: insertError } = await supabase
                     .from('actions')
                     .insert(actionsToInsert)
+                    .select()
 
                 if (insertError) {
                     console.error('Error inserting actions:', insertError)
                     throw insertError
                 }
 
+                // Actualizar el store de acciones local
+                if (insertedActions && insertedActions.length > 0) {
+                    const currentActions = { ...$actions }
+                    if (!currentActions[subjectId]) {
+                        currentActions[subjectId] = []
+                    }
+                    
+                    insertedActions.forEach(action => {
+                        currentActions[subjectId].push({
+                            ...action,
+                            last_used: new Date().toISOString()
+                        })
+                    })
+                    
+                    actions.set(currentActions)
+                }
+
+                totalActionsCreated += actionsToCreate.length
                 console.log(`Created ${actionsToCreate.length} actions for subject ${subjectId}`)
             }
         }
+        
+        return totalActionsCreated
     }
 
     // Obtener los nombres de acciones que se deben crear para cada tipo de campo
@@ -250,13 +282,14 @@
     }
     
     // Alternar selección de sujeto
-    function toggleSubjectForField(fieldId, subjectId) {
+    async function toggleSubjectForField(fieldId, subjectId) {
         const config = configurations[fieldId]
         if (!config) return
         
         const index = config.subjectIds.indexOf(subjectId)
+        const isAdding = index === -1
         
-        if (index === -1) {
+        if (isAdding) {
             config.subjectIds.push(subjectId)
         } else {
             config.subjectIds.splice(index, 1)
@@ -266,6 +299,19 @@
         configurations = { ...configurations }
         
         console.log('Updated subject selection for', fieldId, config.subjectIds)
+        
+        // Si está habilitado y estamos agregando un sujeto, crear las acciones automáticamente
+        if (config.enabled && isAdding) {
+            try {
+                const actionsCreated = await createActionsForEnabledField(fieldId, [subjectId])
+                if (actionsCreated > 0) {
+                    showNotification(`✅ ${actionsCreated} acciones creadas para el miembro seleccionado`)
+                }
+            } catch (error) {
+                console.error('Error creating actions for subject:', error)
+                showNotification('❌ Error al crear acciones para el miembro')
+            }
+        }
     }
     
     // Mostrar notificación temporal
@@ -366,7 +412,6 @@
                                                     checked={configurations[field.id]?.subjectIds?.includes(subject.id) || false}
                                                     on:change={() => {
                                                         toggleSubjectForField(field.id, subject.id)
-                                                        saveFieldConfiguration(field.id)
                                                     }}
                                                     disabled={saving}
                                                 />
